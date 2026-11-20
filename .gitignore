@@ -227,3 +227,6 @@ __marimo__/
 
 # Private data — real trades and notes (NFR-005)
 data/private/
+
+# Raw source texts — never committed (REQUIREMENTS.md §10)
+data/raw/

@@ -62,4 +62,6 @@ Post-MVP: pgvector (semantic search), LangGraph (comparison with the hand-writte
 
 ## License
 
-TBD. The dataset license depends on source data terms (see REQUIREMENTS.md, REQ-002).
+- **Code:** MIT
+- **Labels and annotation guideline:** CC-BY-4.0
+- **Source posts:** not redistributed. They belong to their authors and come from existing public datasets. See [data/SOURCES.md](data/SOURCES.md) for sources, licenses and platform terms.

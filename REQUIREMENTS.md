@@ -66,15 +66,15 @@ Source key: **Desc** = project description · **Disc** = scoping discussion, 202
 | ID | Requirement Name | User Story | Acceptance Criteria | MoSCoW | Source |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **REQ-001** | Annotation guideline | **As an** annotator **I want** a written guideline **so that** two people label the same text the same way. | **Given** the guideline (`docs/annotation_guideline.md`, versioned) **then** every label in §4.1 has: a definition, inclusion and exclusion rules, ≥2 positive examples, ≥1 borderline/negative example. Tie-break rules exist for `fomo`/`herd` and `anchoring`/`loss_aversion`. | **Must** | Desc, Disc |
-| **REQ-002** | License check before collection | **As the** author **I want** each data source's license recorded before use **so that** the dataset can legally be used and possibly published. | **Given** a candidate source **when** it is added **then** `data/SOURCES.md` records source, license/ToS link, whether redistribution is allowed and the date checked. No post is collected from a source without an entry. | **Must** | Desc, Disc |
-| **REQ-003** | Source post collection | **As the** author **I want** 300–500 real investor posts **so that** the test set reflects real investor language. | **Given** collected posts **then** each record has `id`, `source`, `source_id`, `text`, `collected_at`. Duplicates (same normalized text) are removed. Only English posts are kept. Posts with fewer than 5 words are dropped. | **Must** | Desc |
+| **REQ-002** | License and permission check before use | **As the** author **I want** each source's dataset license and the original platform's terms recorded separately before use **so that** I know exactly what I may and may not do with the data. | **Given** a candidate source **when** it is added **then** `data/SOURCES.md` records: dataset license (set by the uploader), platform terms (Reddit / StockTwits), whether stable post IDs exist, status (`approved` / `pending` / `rejected`) and the date checked. No post is sampled from a source unless its status is `approved`. | **Must** | Desc, Disc |
+| **REQ-003** | Source post sampling | **As the** author **I want** 300–500 real investor posts sampled from existing public datasets **so that** the test set reflects real investor language without collecting data myself. | **Given** `approved` sources **then** posts are sampled only from those pre-existing datasets. No scraping and no platform API collection. Each record has `id`, `source`, `source_id`, `text`, `sampled_at`. Duplicates (same normalized text) are removed. Only English posts are kept. Posts with fewer than 5 words are dropped. | **Must** | Desc, Disc |
 | **REQ-004** | Pilot labeling | **As the** author **I want** to label 50 posts with a second annotator first **so that** guideline problems are found before full labeling. | **Given** 50 posts labeled by both annotators **when** the pilot report script runs **then** it outputs per-class counts and per-class Cohen's kappa. **Then** any class with kappa < 0.4 is redefined or merged, and any class projected to have < 20 examples in the full set is merged or dropped. The guideline version is bumped. | **Must** | Disc |
 | **REQ-005** | Full labeling | **As the** author **I want** the full set labeled under one guideline version **so that** labels are consistent. | **Given** the final guideline **then** every post has labels following §4.2, and each record stores the `guideline_version`. A validation script rejects records that break §4.2 (0 or >2 bias labels, `no_bias` combined with others). | **Must** | Desc, Disc |
 | **REQ-006** | Inter-annotator agreement | **As the** author **I want** agreement measured on a shared subset **so that** I know how subjective the task is and what score is realistically achievable. | **Given** ≥100 posts (pilot included) labeled independently by both annotators **then** per-class and mean Cohen's kappa are computed by code and reported in the README next to model scores. | **Must** | Desc |
 | **REQ-007** | Fixed train/test split | **As the** author **I want** a fixed, stratified split **so that** the test set is never used for training or prompt design. | **Given** the labeled set **when** the split script runs with a fixed seed **then** ~70/30 train/test ID lists are saved and stratified by label. After the first eval run the test ID list is frozen (its hash is recorded). Few-shot examples in prompts come only from the train split. | **Must** | Disc |
 | **REQ-008** | Synthetic data isolation | **As the** author **I want** synthetic data used only for training **so that** eval results are not inflated. | **Given** LLM-generated notes **then** they are tagged `source=synthetic`, generated only for rare classes and stored only in train. An automated check fails the eval run if any synthetic ID appears in a test set. | **Must** | Desc |
 | **REQ-009** | Personal notes test set | **As the** author **I want** my own labeled notes as a separate test set **so that** I can measure performance on the real use case (domain shift). | **Given** ≥50 own notes labeled with the same guideline **then** eval reports scores on this set separately from the public-post test set. | **Should** | Desc, Disc |
-| **REQ-010** | Dataset publication | **As the** author **I want** to publish the labeled dataset on Hugging Face **so that** others can reuse it. | **Given** REQ-002 shows redistribution is allowed **then** the dataset is published with a dataset card (sources, guideline, agreement scores, license). | **Could** | Desc |
+| **REQ-010** | Annotation publication | **As the** author **I want** to publish my labels on Hugging Face without redistributing other people's posts **so that** others can reuse my work while platform terms are respected. | **Given** the final labeled set **then** the published files contain only `source`, `source_id`, `labels`, `guideline_version`. No post text. A loader script joins labels with the original public dataset by ID. The dataset card lists sources with attribution, the guideline, agreement scores and the annotation license (CC-BY-4.0). Items from sources without stable IDs are not published. | **Could** | Desc, Disc |
 
 ### 5.2 M2 — Classifier and evaluation
 
@@ -87,7 +87,7 @@ Source key: **Desc** = project description · **Disc** = scoping discussion, 202
 | **REQ-015** | Baseline classifier | **As the** author **I want** a classical ML baseline **so that** the LLM's added value is measured, not assumed. | **Given** the train split (+ synthetic) **then** a TF-IDF + one-vs-rest logistic regression model is trained with a fixed seed and evaluated on the same test set(s) as the LLM. | **Must** | Desc |
 | **REQ-016** | One-command eval | **As the** author **I want** to run the full evaluation with one command **so that** results are reproducible and easy to update. | **Given** a clean clone with env vars set **when** the single documented eval command runs **then** it evaluates LLM and baseline on every test set and writes: per-class precision/recall/F1, macro-F1, per-class confusion matrices, cost per item (USD), latency per item (p50/p95), and a Markdown table pasted into the README. | **Must** | Desc |
 | **REQ-017** | Run metadata | **As the** author **I want** every eval run to record its setup **so that** results can be traced and compared. | **Given** an eval run **then** its results file stores: model name/version, prompt hash, guideline version, test-split hash, seed, date and git commit. | **Must** | Disc |
-| **REQ-018** | Error analysis | **As the** author **I want** misclassifications exported and categorized **so that** I understand why the model fails. | **Given** an eval run **then** a file lists every misclassified item with gold vs predicted labels. The README contains ≥20 categorized errors (for example ambiguous text, guideline gap, model error). | **Must** | Desc |
+| **REQ-018** | Error analysis | **As the** author **I want** misclassifications exported and categorized **so that** I understand why the model fails. | **Given** an eval run **then** a file lists every misclassified item with gold vs predicted labels. The README contains ≥20 categorized errors (for example ambiguous text, guideline gap, model error). Example texts shown in the README have usernames and links removed and are at most 280 characters. | **Must** | Desc |
 | **REQ-019** | LLM response cache | **As the** author **I want** LLM responses cached by (prompt hash, input) **so that** re-running eval doesn't repeat paid calls. | **Given** an unchanged prompt and input **when** eval re-runs **then** the cached response is used and no API call is made. A flag forces a fresh run. | **Should** | Disc |
 
 ### 5.3 M3 — Journal, metrics, UI
@@ -118,7 +118,7 @@ Source key: **Desc** = project description · **Disc** = scoping discussion, 202
 | **NFR-010** | Observability | Every LLM call is logged. | The log stores prompt, response, token counts, latency and cost per call. | **Should** | Disc |
 | **NFR-011** | Testability | Core logic has automated tests. | `pytest` covers metrics, schema validation and the split-leakage check. Tests pass in GitHub Actions on every push. | **Should** | Disc |
 | **NFR-012** | Language | Repo, code, documentation and decision notes are in English. | 100% | **Must** | Desc |
-| **NFR-013** | Data licensing | Each data source's license status is documented before use. | `data/SOURCES.md` has 1 entry per source (REQ-002). | **Must** | Desc |
+| **NFR-013** | Data licensing | Each data source's license and platform terms are documented before use, and the data-use policy in §10 is followed. | `data/SOURCES.md` has 1 entry per source (REQ-002). 0 scraped items. 0 source texts in published files. | **Must** | Desc, Disc |
 
 ## 7. Data schemas
 
@@ -156,8 +156,24 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 
 | Decision | Blocks | Notes |
 | :--- | :--- | :--- |
-| Data source licenses (StockTwits, Reddit/WSB) | M1 collection, REQ-010 | Must be resolved first (REQ-002). If unusable, find alternative open datasets. |
 | LLM provider | M2 | Gemini free tier is an option. NFR-008 keeps this swappable. |
 | Final bias list | Full labeling | Decided after the pilot (REQ-004). |
 | Size of second-annotator subset | REQ-006 | Minimum 100. Depends on the second annotator's availability. |
 | Embedding model | M4 | Post-MVP. |
+
+## 10. Licensing and data-use policy
+
+Three different things have separate rules. They should not be confused:
+
+| What | Who owns it | Our rule |
+| :--- | :--- | :--- |
+| **Post texts** (Reddit, StockTwits) | The users who wrote them. Platform terms apply. | Used only for non-commercial evaluation and training inside this repo. Sampled from existing public datasets, never scraped. Never redistributed in bulk. Stored under `data/raw/`, which is git-ignored. |
+| **Our labels, guideline, eval code** | The author | Labels and guideline: CC-BY-4.0. Code: MIT. |
+| **Third-party dataset packaging** | The uploader (for example SocialGrep) | Follow the uploader's license, for example attribution for CC-BY-4.0. This license does not grant rights the uploader doesn't own. |
+
+Platform terms checked on 2026-11-20:
+
+- **Reddit:** user content is owned by its authors. The Data API terms (section 2.4) restrict machine-learning use without user permission. → No API collection. No redistribution of texts.
+- **StockTwits:** the terms (revised 2026-07-10, section 5) prohibit automated extraction without written permission and grant no right to redistribute content in bulk. → No scraping. No redistribution of texts.
+
+This is a good-faith reading of public terms, not legal advice.
