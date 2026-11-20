@@ -1,13 +1,15 @@
 # Investment Bias Detector — Requirements
 
-**Version:** 0.1 (draft) · **Date:** 2026-11-20 · **Status:** MVP scope agreed, open decisions listed in §9
+**Version:** 0.2 · **Date:** 2026-11-20 · **Status:** MVP scope agreed, open decisions listed in §9
+
+**Changelog:** 0.2 — financial literacy checklist (§4.4) with checklist-targeted questions (REQ-027), question quality eval (REQ-028) and checklist coverage over time (REQ-029); 4 evaluated biases after the pilot; stratified sampling; model-assisted labeling with a single reviewer; requirements rewritten as requirement + done-when.
 
 ## 1. Purpose
 
 Investment Bias Detector is an investment decision journal. It records the reasoning behind each buy/sell decision, flags cognitive biases in that reasoning, and computes behavioral metrics from trade history. It has two goals:
 
-1. Help the author understand her own investing behavior and improve financial literacy.
-2. Serve as the main CV project for AI engineering internship applications. The core of the project is a hand-labeled dataset and a rigorous evaluation.
+1. Help the author understand her own investing behavior and improve financial literacy. Beyond classifying biases, the app pushes the author toward the checks a financially literate investor makes before deciding (§4.4).
+2. Serve as the main CV project for AI engineering internship applications. The core of the project is a human-reviewed labeled dataset and a rigorous evaluation.
 
 ## 2. Guiding principles
 
@@ -15,6 +17,7 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 | :--- | :--- |
 | Numbers from code, words from the LLM | Every metric and number is computed in Python. The LLM only explains numbers it is given and never produces new ones. |
 | No buy/sell advice | The app analyzes decisions. It never says what to buy, sell or hold. |
+| Ask, don't judge | Questions point to what the author didn't check. They never state a verdict on the stock (for example "the P/E is too high"). |
 | Privacy | The public demo runs only on a fictional portfolio and sample notes. Real portfolio data never leaves the local machine or the private database. |
 | Narrow and deep | The evaluation is deep and everything else stays simple. Fewer, finished features. |
 | Visible agent loop | Hand-written function-calling loop, no agent framework, so every prompt sent to the model is fully controlled during eval. |
@@ -23,16 +26,16 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 
 | Milestone | Content | In MVP |
 | :--- | :--- | :--- |
-| **M1** Dataset | Bias definitions, annotation guideline, pilot, labeled dataset, inter-annotator agreement, train/test split | ✅ |
-| **M2** Classifier + eval | LLM bias analyzer, TF-IDF baseline, one-command eval harness, error analysis | ✅ |
-| **M3** Journal + metrics | Decision notes saved to Supabase, CSV trade import, behavioral metrics, Streamlit UI, demo mode | ✅ |
+| **M1** Dataset | Bias definitions, annotation guideline, pilot, model-assisted labeled dataset, train/test split | ✅ |
+| **M2** Classifier + eval | LLM bias analyzer, checklist-targeted questions, TF-IDF baseline, one-command eval harness, error analysis | ✅ |
+| **M3** Journal + metrics | Decision notes saved to Supabase, CSV trade import, behavioral metrics, checklist coverage, Streamlit UI, demo mode | ✅ |
 | M4 RAG | Semantic search over past decisions, Recall@5 eval | ❌ Post-MVP |
 | M5 Outcome tracking | Match decisions to price outcomes | ❌ Post-MVP |
 | M6 LangGraph comparison | Same agent rebuilt in LangGraph, compared in README | ❌ Post-MVP |
 
 **Why RAG is post-MVP:** retrieval over ~20–30 personal notes would make Recall@5 trivially high (top-5 of 20 is 25% of the corpus) and the metric meaningless. M3 builds up the corpus that M4 needs.
 
-## 4. Bias taxonomy (initial, to be revised after the pilot)
+## 4. Bias taxonomy (revised after the pilot, 2026-11-20)
 
 ### 4.1 Text-detectable biases (classifier labels)
 
@@ -46,6 +49,10 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 | `confirmation` | **Narrow definition:** explicitly dismissing or mocking contrary information | "bears are idiots", "ignore the FUD" | — |
 | `no_bias` | No identifiable bias in the text | — | Exclusive with all others |
 
+**Evaluated labels (MVP):** `overconfidence`, `anchoring`, `loss_aversion`, `fomo`, `no_bias`.
+
+`herd` and `confirmation` stay in the annotation guideline, so the information is not lost, but they are **not evaluated and not shown in the app** in the MVP. The pilot found 0 and 1 examples of them out of 26 labeled WSB posts, so even targeted sampling is unlikely to reach the 20-example minimum (REQ-004).
+
 ### 4.2 Labeling rules
 
 - Multi-label. Each item gets **1–2 bias labels**, or exactly `no_bias`.
@@ -57,68 +64,96 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 
 Disposition effect, holding period, trade frequency. See REQ-023.
 
+### 4.4 Financial literacy checklist
+
+The checks a financially literate investor answers before a decision. The checklist is separate from the bias labels: biases describe what went wrong in the reasoning, checks describe what was left out. It is used only for question generation (REQ-027) and coverage tracking (REQ-029), not for the M1 dataset labels.
+
+| Check ID | What a literate investor asks | Example question to the author |
+| :--- | :--- | :--- |
+| `thesis` | Why this asset, in one concrete sentence? | "What is the one-sentence reason you're buying this?" |
+| `invalidation` | What would prove the thesis wrong? | "What would have to happen for you to admit the thesis was wrong?" |
+| `valuation` | Is the price justified, compared to what? | "How did you decide this price is reasonable? What did you compare it to?" |
+| `position_size` | How much of the portfolio is at risk? | "This position is {position_pct}% of your portfolio. What happens to the total if it drops 50%?" |
+| `time_horizon` | How long is the plan to hold? | "Are you planning to hold this for a week or for three years?" |
+| `opportunity_cost` | Why this instead of the alternative (for example an index fund)? | "Why this stock rather than putting the same money in an index fund?" |
+
+Bias → priority checks (which checks to ask about first when a bias is detected):
+
+| Bias | Priority checks | Why |
+| :--- | :--- | :--- |
+| `fomo` | `valuation`, `time_horizon` | Urgency replaces price analysis and a holding plan. |
+| `herd` | `thesis`, `opportunity_cost` | Others' actions replace an own reason. |
+| `overconfidence` | `position_size`, `invalidation` | Certainty hides downside and sizing risk. |
+| `anchoring` | `valuation` | A past price replaces a current value judgment. ("Would you buy it today at this price from scratch?") |
+| `loss_aversion` | `invalidation`, `opportunity_cost` | Waiting to break even ignores whether the thesis still holds and where the money could be instead. |
+| `confirmation` | `invalidation` | Dismissing contrary info means no exit condition was considered. |
+| `no_bias` | Any missing check | Even an unbiased note can skip checks. |
+
 ## 5. Functional requirements
 
-Source key: **Desc** = project description · **Disc** = scoping discussion, 2026-11-20
+**Status:** ✅ done · 🔄 in progress · ⏳ not started
 
 ### 5.1 M1 — Dataset
 
-| ID | Requirement Name | User Story | Acceptance Criteria | MoSCoW | Source |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **REQ-001** | Annotation guideline | **As an** annotator **I want** a written guideline **so that** two people label the same text the same way. | **Given** the guideline (`docs/annotation_guideline.md`, versioned) **then** every label in §4.1 has: a definition, inclusion and exclusion rules, ≥2 positive examples, ≥1 borderline/negative example. Tie-break rules exist for `fomo`/`herd` and `anchoring`/`loss_aversion`. | **Must** | Desc, Disc |
-| **REQ-002** | License and permission check before use | **As the** author **I want** each source's dataset license and the original platform's terms recorded separately before use **so that** I know exactly what I may and may not do with the data. | **Given** a candidate source **when** it is added **then** `data/SOURCES.md` records: dataset license (set by the uploader), platform terms (Reddit / StockTwits), whether stable post IDs exist, status (`approved` / `pending` / `rejected`) and the date checked. No post is sampled from a source unless its status is `approved`. | **Must** | Desc, Disc |
-| **REQ-003** | Source post sampling | **As the** author **I want** 300–500 real investor posts sampled from existing public datasets **so that** the test set reflects real investor language without collecting data myself. | **Given** `approved` sources **then** posts are sampled only from those pre-existing datasets. No scraping and no platform API collection. Each record has `id`, `source`, `source_id`, `text`, `sampled_at`. Duplicates (same normalized text) are removed. Only English posts are kept. Posts with fewer than 5 words are dropped. | **Must** | Desc, Disc |
-| **REQ-004** | Pilot labeling | **As the** author **I want** to label 50 posts with a second annotator first **so that** guideline problems are found before full labeling. | **Given** 50 posts labeled by both annotators **when** the pilot report script runs **then** it outputs per-class counts and per-class Cohen's kappa. **Then** any class with kappa < 0.4 is redefined or merged, and any class projected to have < 20 examples in the full set is merged or dropped. The guideline version is bumped. | **Must** | Disc |
-| **REQ-005** | Full labeling | **As the** author **I want** the full set labeled under one guideline version **so that** labels are consistent. | **Given** the final guideline **then** every post has labels following §4.2, and each record stores the `guideline_version`. A validation script rejects records that break §4.2 (0 or >2 bias labels, `no_bias` combined with others). | **Must** | Desc, Disc |
-| **REQ-006** | Inter-annotator agreement | **As the** author **I want** agreement measured on a shared subset **so that** I know how subjective the task is and what score is realistically achievable. | **Given** ≥100 posts (pilot included) labeled independently by both annotators **then** per-class and mean Cohen's kappa are computed by code and reported in the README next to model scores. | **Must** | Desc |
-| **REQ-007** | Fixed train/test split | **As the** author **I want** a fixed, stratified split **so that** the test set is never used for training or prompt design. | **Given** the labeled set **when** the split script runs with a fixed seed **then** ~70/30 train/test ID lists are saved and stratified by label. After the first eval run the test ID list is frozen (its hash is recorded). Few-shot examples in prompts come only from the train split. | **Must** | Disc |
-| **REQ-008** | Synthetic data isolation | **As the** author **I want** synthetic data used only for training **so that** eval results are not inflated. | **Given** LLM-generated notes **then** they are tagged `source=synthetic`, generated only for rare classes and stored only in train. An automated check fails the eval run if any synthetic ID appears in a test set. | **Must** | Desc |
-| **REQ-009** | Personal notes test set | **As the** author **I want** my own labeled notes as a separate test set **so that** I can measure performance on the real use case (domain shift). | **Given** ≥50 own notes labeled with the same guideline **then** eval reports scores on this set separately from the public-post test set. | **Should** | Desc, Disc |
-| **REQ-010** | Annotation publication | **As the** author **I want** to publish my labels on Hugging Face without redistributing other people's posts **so that** others can reuse my work while platform terms are respected. | **Given** the final labeled set **then** the published files contain only `source`, `source_id`, `labels`, `guideline_version`. No post text. A loader script joins labels with the original public dataset by ID. The dataset card lists sources with attribution, the guideline, agreement scores and the annotation license (CC-BY-4.0). Items from sources without stable IDs are not published. | **Could** | Desc, Disc |
+| ID | Requirement | Done when | Priority | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **REQ-001** | A written annotation guideline defines every label. | `docs/annotation_guideline.md` is versioned. Each label has a definition, a required cue, exclusions, ≥2 positive and ≥1 negative example. Overlapping pairs have tie-break rules. | Must | ✅ |
+| **REQ-002** | Every data source is checked for license and platform terms before use. | `data/SOURCES.md` lists, per source: dataset license, platform terms, whether stable post IDs exist, status (`approved` / `pending` / `rejected`) and the date checked. Posts are sampled only from `approved` sources. | Must | ✅ |
+| **REQ-003** | Posts are sampled from existing public datasets, with extra samples for rare biases. | No scraping and no API collection. Texts pass the filters (≥5 words, ≤1500 characters, no bots, no repeated texts, decision pre-filter). Sampling uses a general stratum plus one keyword stratum each for `fomo`, `loss_aversion`, `anchoring`. Each record has `id`, `source_type`, `stratum`, `text`. Pilot IDs are excluded. The same seed gives the same file. | Must | ✅ |
+| **REQ-004** | A 50-post pilot tests the guideline before full labeling. | 50 posts are reviewed, per-class counts are computed, disagreements are turned into guideline rules, classes projected to have < 20 examples are merged, dropped or oversampled, and the guideline version is bumped. | Must | ✅ |
+| **REQ-005** | Labels are suggested by an LLM and reviewed by a human. | Suggestions sit in `suggested_*` columns that are never edited. Final labels follow §4.2. Every row has `checked = x`, `guideline_version` and `suggested_by`. The share of changed suggestions is reported. The suggesting model is not one of the models evaluated in M2. A validation script rejects invalid records. | Must | 🔄 |
+| **REQ-006** | A small blind self-check estimates how much the suggestions influence the reviewer. | 30 posts are labeled before suggestions are shown. Cohen's kappa between these labels and the suggestions is computed and reported in the README. | Could | ⏳ |
+| **REQ-007** | The labeled set has a fixed train/test split. | ~70/30 stratified split with a fixed seed, saved as ID lists. The test list is frozen after the first eval run (hash recorded). Few-shot examples come only from train. | Must | ⏳ |
+| **REQ-008** | Synthetic data is used only for training. | Synthetic items are tagged `source=synthetic`, generated only for rare classes and stored only in train. The eval run fails if a synthetic ID appears in a test set. | Must | ⏳ |
+| **REQ-009** | My own decision notes form a separate test set. | ≥50 notes written at decision time are labeled with the same guideline. Their scores are reported separately. | Should | ⏳ |
+| **REQ-010** | Labels are published without other people's texts. | Published files contain only `source`, `source_id`, `labels`, `guideline_version`. A loader joins them with the original dataset by ID. The dataset card lists sources with attribution, the guideline, the labeling method and the license (CC-BY-4.0). | Could | ⏳ |
 
 ### 5.2 M2 — Classifier and evaluation
 
-| ID | Requirement Name | User Story | Acceptance Criteria | MoSCoW | Source |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **REQ-011** | LLM bias analysis | **As a** user **I want** my note analyzed for biases **so that** I see blind spots in my reasoning. | **Given** a note text **when** analysis runs **then** the output validates against a Pydantic schema: `labels` (follows §4.2), and for each label an `evidence` span and a `rationale`, plus 1–3 `questions`. On invalid output the system retries once, then returns `{"error": ...}`. | **Must** | Desc |
-| **REQ-012** | Evidence grounding check | **As the** author **I want** evidence spans verified in code **so that** the model cannot cite text that isn't in the note. | **Given** an analysis result **then** each `evidence` string is checked to be a substring of the input (case/whitespace-normalized). The ungrounded-evidence rate is reported in eval. | **Should** | Disc |
-| **REQ-013** | Reflective questions, no advice | **As a** user **I want** thought-provoking questions **so that** I reconsider my decision without being told what to do. | **Given** generated questions **then** none recommend buying, selling or holding. A code check flags advice phrases and reports their count in eval (target 0). A manual review of 30 sampled outputs finds 0 recommendations. | **Must** | Desc |
-| **REQ-014** | Hand-written agent loop | **As the** author **I want** a framework-free function-calling loop **so that** every step and prompt is visible and controllable. | **Given** the agent **then** it uses no agent framework, tools return `{"error": ...}` instead of raising, and the loop stops after a configured maximum number of iterations (default 5). | **Must** | Desc |
-| **REQ-015** | Baseline classifier | **As the** author **I want** a classical ML baseline **so that** the LLM's added value is measured, not assumed. | **Given** the train split (+ synthetic) **then** a TF-IDF + one-vs-rest logistic regression model is trained with a fixed seed and evaluated on the same test set(s) as the LLM. | **Must** | Desc |
-| **REQ-016** | One-command eval | **As the** author **I want** to run the full evaluation with one command **so that** results are reproducible and easy to update. | **Given** a clean clone with env vars set **when** the single documented eval command runs **then** it evaluates LLM and baseline on every test set and writes: per-class precision/recall/F1, macro-F1, per-class confusion matrices, cost per item (USD), latency per item (p50/p95), and a Markdown table pasted into the README. | **Must** | Desc |
-| **REQ-017** | Run metadata | **As the** author **I want** every eval run to record its setup **so that** results can be traced and compared. | **Given** an eval run **then** its results file stores: model name/version, prompt hash, guideline version, test-split hash, seed, date and git commit. | **Must** | Disc |
-| **REQ-018** | Error analysis | **As the** author **I want** misclassifications exported and categorized **so that** I understand why the model fails. | **Given** an eval run **then** a file lists every misclassified item with gold vs predicted labels. The README contains ≥20 categorized errors (for example ambiguous text, guideline gap, model error). Example texts shown in the README have usernames and links removed and are at most 280 characters. | **Must** | Desc |
-| **REQ-019** | LLM response cache | **As the** author **I want** LLM responses cached by (prompt hash, input) **so that** re-running eval doesn't repeat paid calls. | **Given** an unchanged prompt and input **when** eval re-runs **then** the cached response is used and no API call is made. A flag forces a fresh run. | **Should** | Disc |
+| ID | Requirement | Done when | Priority | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **REQ-011** | The LLM analyzes a note for biases and missing checks. | Output validates against a Pydantic schema (§7.3): labels (§4.2), an evidence span and rationale per label, `missing_checks` (§4.4 IDs), and 1–3 questions, each with `text` and `check`. Invalid output is retried once, then `{"error": ...}` is returned. | Must | ⏳ |
+| **REQ-012** | Evidence spans are verified in code. | Each evidence string is a substring of the input (case/whitespace-normalized). The ungrounded-evidence rate is reported in eval. | Should | ⏳ |
+| **REQ-013** | Reflective questions never give advice or a verdict. | No question recommends buying, selling or holding, or states a verdict on the asset ("it's overvalued"). A code check flags advice phrases and the eval count is 0. A manual review of 30 outputs finds 0. | Must | ⏳ |
+| **REQ-014** | The agent loop is hand-written. | No agent framework. Tools return `{"error": ...}` instead of raising. The loop stops after a max number of iterations (default 5). | Must | ⏳ |
+| **REQ-015** | A classical ML baseline is evaluated next to the LLM. | TF-IDF + one-vs-rest logistic regression, trained on train (+ synthetic) with a fixed seed, evaluated on the same test sets. | Must | ⏳ |
+| **REQ-016** | The full evaluation runs with one command. | One documented command evaluates LLM and baseline on every test set and writes per-class P/R/F1, macro-F1, confusion matrices, cost per item, latency p50/p95, and a Markdown table for the README. | Must | ⏳ |
+| **REQ-017** | Every eval run records its setup. | The results file stores model name/version, prompt hash, guideline version, test-split hash, seed, date and git commit. | Must | ⏳ |
+| **REQ-018** | Errors are exported and analyzed. | A file lists every misclassified item with gold vs predicted labels. The README has ≥20 categorized errors. README examples have no usernames or links and are ≤280 characters. | Must | ⏳ |
+| **REQ-019** | LLM responses are cached. | An unchanged prompt and input reuse the cached response with no API call. A flag forces a fresh run. | Should | ⏳ |
+| **REQ-027** | Questions target the checks the note skipped. | Every question's `check` is in `missing_checks`. When a bias is detected and one of its priority checks (§4.4) is missing, at least one question targets it. If no check is missing, at most 1 question is asked. Numbers in questions (for example `position_pct`) are filled in by code from trade data. Without linked trade data, no question contains a number. | Must | ⏳ |
+| **REQ-028** | Question quality is measured with a simple rubric. | `docs/question_rubric.md` is written before scoring. 30 sampled outputs are scored by hand on 3 yes/no criteria: targets a check that is really missing, contains no advice or verdict, is specific to the note. The pass rate per criterion is in the README. | Should | ⏳ |
 
 ### 5.3 M3 — Journal, metrics, UI
 
-| ID | Requirement Name | User Story | Acceptance Criteria | MoSCoW | Source |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **REQ-020** | Write decision note | **As a** user **I want** to write a short reason for each trade **so that** my reasoning is recorded at decision time. | **Given** the UI **when** I submit ticker, market, side, date and note text **then** the note is saved to Supabase, analysis runs (REQ-011) and the result is stored linked to the note. | **Must** | Desc |
-| **REQ-021** | View analysis | **As a** user **I want** to see the analysis next to my note **so that** I can reflect on it. | **Given** a saved note **then** the UI shows the labels, evidence spans highlighted in the note, rationale and questions. | **Must** | Desc |
-| **REQ-022** | CSV trade import | **As a** user **I want** to import trades from a CSV **so that** metrics can be computed without a broker integration. | **Given** a CSV matching §7.1 **when** imported **then** valid rows are saved and invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | **Must** | Disc |
-| **REQ-023** | Behavioral metrics | **As a** user **I want** metrics computed from my trades **so that** I see patterns I can't see trade by trade. | **Given** imported trades **then** pandas code computes: holding period (median, realized winners vs losers), trades per month, and a disposition proxy (winner vs loser holding-period ratio). Results are computed per currency and never mix USD and TRY. Unit tests check every metric against a hand-calculated fixture. | **Must** | Desc, Disc |
-| **REQ-024** | Metric explanation guard | **As the** author **I want** the LLM's metric explanations checked **so that** it cannot invent numbers. | **Given** an LLM explanation of a metrics dict **then** code extracts every number in the text and verifies it appears in the input dict. On failure the explanation is regenerated once, then numbers are shown without explanation. | **Should** | Desc |
-| **REQ-025** | Sample size display | **As a** user **I want** every aggregate to show its n **so that** I don't over-trust small samples. | **Given** any aggregate metric **then** n is displayed. If n < 10 the metric is labeled "insufficient data". | **Must** | Disc |
-| **REQ-026** | Demo mode | **As a** visitor **I want** a working demo **so that** I can try the app without real data. | **Given** demo mode **then** the app loads only a seeded fictional portfolio and sample notes. Demo mode cannot read the real data tables. | **Must** | Desc |
+| ID | Requirement | Done when | Priority | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to Supabase, runs the analysis (REQ-011) and stores the result linked to the note. | Must | ⏳ |
+| **REQ-021** | I can see the analysis next to the note. | The UI shows labels, evidence highlighted in the note, rationale, missing checks and questions. | Must | ⏳ |
+| **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ⏳ |
+| **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ⏳ |
+| **REQ-024** | The LLM cannot invent numbers when explaining metrics. | Every number in the explanation exists in the input metrics. Otherwise it is regenerated once, then numbers are shown without explanation. | Should | ⏳ |
+| **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ⏳ |
+| **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and cannot read the real data tables. | Must | ⏳ |
+| **REQ-029** | I can see which checks I skip most and whether that improves. | pandas computes, per §4.4 check, the share of notes where it was missing, overall and per month. The UI shows it with n (REQ-025). The LLM may explain the table but produces no numbers (REQ-024). | Should | ⏳ |
 
 ## 6. Non-functional requirements
 
-| ID | Attribute | Metric / Constraint Specification | Target Metric / Value | MoSCoW | Source |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **NFR-001** | Reproducibility | Full eval runs from a clean clone using README instructions only. | 1 command. ≤15 min on MacBook M2 for ≤200 test items (cache cold). | **Must** | Desc |
-| **NFR-002** | Determinism | Fixed seeds and LLM temperature 0. | Two consecutive baseline runs give identical metrics. LLM macro-F1 spread over 3 runs is reported. | **Must** | Disc |
-| **NFR-003** | Cost | LLM spend per full eval run is logged. | ≤ $1 per full eval run, or within the provider's free tier. | **Should** | Desc |
-| **NFR-004** | Latency | Single-note analysis time, end to end. | p95 ≤ 10 s | **Should** | Desc |
-| **NFR-005** | Privacy | Real trades and notes are never committed or shown publicly. | Real-data files are in `.gitignore`. Secrets are only in env vars. A pre-commit check blocks `.env` and `data/private/`. | **Must** | Desc |
-| **NFR-006** | No financial advice | No output recommends buying, selling or holding. | 0 flagged outputs in eval (REQ-013). A disclaimer is visible on every analysis screen. | **Must** | Desc |
-| **NFR-007** | Numbers from code | Any number shown to the user comes from Python code. | 100% of displayed numbers trace back to computed values (REQ-024). | **Must** | Desc |
-| **NFR-008** | Provider independence | All LLM calls go through one client interface. | Switching provider changes only one module plus config. | **Should** | Disc |
-| **NFR-009** | Robustness | Tools never raise exceptions to the agent loop. | Every tool returns either a result or `{"error": str}`. The loop has a max-iteration limit. | **Must** | Desc |
-| **NFR-010** | Observability | Every LLM call is logged. | The log stores prompt, response, token counts, latency and cost per call. | **Should** | Disc |
-| **NFR-011** | Testability | Core logic has automated tests. | `pytest` covers metrics, schema validation and the split-leakage check. Tests pass in GitHub Actions on every push. | **Should** | Disc |
-| **NFR-012** | Language | Repo, code, documentation and decision notes are in English. | 100% | **Must** | Desc |
-| **NFR-013** | Data licensing | Each data source's license and platform terms are documented before use, and the data-use policy in §10 is followed. | `data/SOURCES.md` has 1 entry per source (REQ-002). 0 scraped items. 0 source texts in published files. | **Must** | Desc, Disc |
+| ID | Requirement | Done when | Priority | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **NFR-001** | Eval is reproducible from a clean clone. | 1 command, ≤15 min on a MacBook M2 for ≤200 test items (cache cold). | Must | ⏳ |
+| **NFR-002** | Runs are deterministic. | Fixed seeds and LLM temperature 0. Two baseline runs give identical metrics. LLM macro-F1 spread over 3 runs is reported. | Must | ⏳ |
+| **NFR-003** | LLM cost stays low. | Cost is logged. ≤ $1 per full eval run, or within the provider's free tier. | Should | ⏳ |
+| **NFR-004** | Analysis is fast enough to use. | p95 ≤ 10 s per note. | Should | ⏳ |
+| **NFR-005** | Real data stays private. | Real-data files are git-ignored, secrets are only in env vars, and a pre-commit check blocks `.env` and `data/private/`. | Must | 🔄 |
+| **NFR-006** | The app never gives financial advice. | 0 flagged outputs in eval (REQ-013) and a disclaimer on every analysis screen. | Must | ⏳ |
+| **NFR-007** | Numbers come from code. | 100% of displayed numbers trace back to computed values (REQ-024, REQ-027). | Must | ⏳ |
+| **NFR-008** | The LLM provider can be swapped. | Switching provider changes one module plus config. | Should | ⏳ |
+| **NFR-009** | The agent loop is robust. | Every tool returns a result or `{"error": str}`, and the loop has a max-iteration limit. | Must | ⏳ |
+| **NFR-010** | Every LLM call is logged. | Prompt, response, token counts, latency and cost are stored per call. | Should | ⏳ |
+| **NFR-011** | Core logic is tested. | `pytest` covers metrics, schema validation and the split-leakage check, and passes in GitHub Actions on every push. | Should | ⏳ |
+| **NFR-012** | The project is in English. | Repo, code, documentation and decision notes are in English. | Must | 🔄 |
+| **NFR-013** | Data licensing rules are followed. | `data/SOURCES.md` has one entry per source, 0 items are scraped, and 0 source texts appear in published files. | Must | 🔄 |
 
 ## 7. Data schemas
 
@@ -142,6 +177,10 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 
 `id, source (stocktwits | reddit | personal | synthetic), text, labels[], annotator, guideline_version, split (train | test)`
 
+### 7.3 Analysis result
+
+`note_id, labels[], evidence[{label, span, rationale}], missing_checks[], questions[{text, check}], model, prompt_hash, created_at`
+
 ## 8. Out of scope for MVP (Won't, this version)
 
 - RAG over past decisions and Recall@5 eval (M4)
@@ -149,6 +188,7 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 - LangGraph re-implementation and comparison (M6)
 - Midas export importer
 - Full PGR/PLR disposition measure (needs daily price history)
+- A labeled gold set for `missing_checks` with F1 scoring (REQ-028's rubric review is used instead)
 - FastAPI + React front end
 - Any buy/sell/hold recommendation (permanently out of scope)
 
@@ -157,8 +197,7 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 | Decision | Blocks | Notes |
 | :--- | :--- | :--- |
 | LLM provider | M2 | Gemini free tier is an option. NFR-008 keeps this swappable. |
-| Final bias list | Full labeling | Decided after the pilot (REQ-004). |
-| Size of second-annotator subset | REQ-006 | Minimum 100. Depends on the second annotator's availability. |
+| Final checklist | REQ-027 | §4.4 is a first draft. Revisit after writing ~10 own notes against it. |
 | Embedding model | M4 | Post-MVP. |
 
 ## 10. Licensing and data-use policy

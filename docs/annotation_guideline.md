@@ -1,6 +1,6 @@
 # Annotation Guideline
 
-**Version:** 0.1 · **Date:** 2026-11-20 · **Status:** Draft, to be revised after the 50-post pilot (REQ-004)
+**Version:** 0.2 · **Date:** 2026-11-20 · **Status:** Revised after the first pilot review (REQ-004)
 
 This guideline tells annotators how to label investor posts for cognitive biases. Two annotators following it independently should reach the same labels. When they don't, either the post is truly ambiguous or this guideline needs a fix. The pilot exists to find out which.
 
@@ -29,10 +29,15 @@ We only label posts that express the author's **own** buy, sell or hold decision
 | News or a fact with no personal decision | "TSLA deliveries beat estimates." |
 | A meme, joke or reaction with no reasoning | "🚀🚀🚀", "this sub is a casino lol" |
 | About someone else's decision only | "My uncle bought GME at the top." |
+| Advice or promotion aimed at readers, with no clear decision of the author's own | "Why I keep telling you to buy shares. This may squeeze today." |
+| Outcome only: a gain/loss report with no reasoning behind the decision | "First week after buying my first option ($3400 to $6000)" |
 | Clearly sarcastic (for example ends with "/s", or the sarcasm is unmistakable) | "Yeah, buying more puts because stocks only go down /s" |
 | Non-English, unreadable, or fewer than 5 words | — |
+| Sexually explicit content or hate speech aimed at a group, even if it contains a decision (use `skip_reason = explicit`). Everyday profanity like "this stock is f***ed" and insults that are common WSB slang are labeled normally, but such posts are never quoted in the README. | — |
 
-Record the reason in `skip_reason`. Skipped posts are not part of the dataset.
+Record the reason in `skip_reason` using one of: `question`, `news`, `meme`, `other_person`, `no_decision`, `outcome_only`, `sarcasm`, `explicit`, `other`. Skipped posts are not part of the dataset.
+
+**Comments with missing context:** a comment may refer to something we can't see ("that's why I sold my call yesterday"). Label only what the visible text shows. If the visible text has a decision but no cue, it is `no_bias`.
 
 **Why skip instead of labeling `no_bias`?** WSB is full of memes and questions. If they all became `no_bias`, that class would be huge and trivially easy, and the test set would look nothing like the real use case (personal decision notes).
 
@@ -90,6 +95,7 @@ All examples are invented and written in the style of WSB posts.
 **Do NOT label when:**
 - The price rose, but the author waits or buys for a stated analytical reason.
 - The decision is a sell or a hold. FOMO is about getting in.
+- The urgency is aimed at **readers** ("don't miss this play!") rather than the author's own entry. That is promotion, not the author's FOMO.
 
 | | Example | Label |
 | :--- | :--- | :--- |
@@ -122,8 +128,9 @@ All examples are invented and written in the style of WSB posts.
 **Why it happens:** People overrate their own information and skill. In the stock market this shows up as excessive trading and concentrated bets (Odean, 1998; Barber & Odean, 2001).
 
 **Required cue:** **one** of:
-- A certainty claim about the outcome: "can't lose", "guaranteed", "free money", "100% going up", "easiest trade ever".
+- A certainty claim about the outcome: "can't lose", "guaranteed", "free money", "100% going up", "easiest trade ever". An **unhedged prediction stated as fact** also counts ("materials gonna rip tomorrow", "this will moon"). A hedged prediction does not ("I think", "I believe", "probably", "could").
 - An explicitly extreme position with no mention of risk: "put my entire savings in", "maxed out margin", "took a loan to buy".
+- A claim to know better than experts or the market: "analysts have the valuation massively wrong", "the market is completely mispricing this".
 
 **Do NOT label when:**
 - "YOLO" or "all in" is used as slang without a certainty claim or a concrete extreme position. These words are everywhere on WSB.
@@ -164,12 +171,15 @@ All examples are invented and written in the style of WSB posts.
 **Do NOT label when:**
 - The author holds a losing position for a stated fundamental reason. "Down 20%, but the thesis hasn't changed: contract renewals are on track."
 - The author sells a loser. That is the opposite behavior.
+- The author takes a big risk after a large loss, but the text does not link the risk to recovering that loss. Risk-taking after losses (the break-even effect) counts only when the text says so explicitly.
 
 | | Example | Label |
 | :--- | :--- | :--- |
 | ✅ | "Down 35% but I'm not selling until I'm back to even." | `loss_aversion` |
 | ✅ | "It's only a loss if you sell. Diamond hands." | `loss_aversion` |
 | ❌ | "Down 30%, cut it. The thesis was wrong, moving on." | `no_bias` |
+| ✅ | "Down 64% this year, going all in to make it back." | `loss_aversion` |
+| ❌ | "Down 64% this year, all in on MVST with what's left." (no link to recovering the loss) | not `loss_aversion` |
 
 ### 4.6 `confirmation` — Confirmation bias (narrow definition)
 
@@ -206,10 +216,20 @@ All examples are invented and written in the style of WSB posts.
 | `anchoring` vs `loss_aversion` | The reference is **the author's own buy price** and the decision is **not selling** → `loss_aversion`. The reference is **any past price** used to judge a **buy** as cheap → `anchoring`. | "Not selling below my $250 cost" → `loss_aversion`. "Was $300, $200 is cheap" → `anchoring` |
 | `fomo` vs `overconfidence` | Urgency → `fomo`. Certainty → `overconfidence`. Both explicit → both labels. | "Guaranteed 10-bagger, last chance to get in under $5" → both |
 | `fomo` vs `anchoring` | If the main driver is urgency and the price is only context → `fomo` only. | "Last chance under $20 before earnings" → `fomo` |
+| `overconfidence` with risk acknowledged | An extreme position plus an explicit risk acknowledgment ("how screwed am I?", "I'm fine if it goes to zero") → not `overconfidence`. | "Threw my last 2.4K into calls. How screwed am I?" → `no_bias` |
 
 ---
 
-## 6. Output format
+## 6. Model-assisted annotation
+
+To keep the workload manageable, an LLM suggests labels and the annotator reviews them (REQ-005).
+
+- Suggestions are stored in separate `suggested_*` columns and are never edited. The final labels go in `status`, `labels`, `evidence`, `skip_reason`.
+- The annotator marks each reviewed row with `checked = x`, and writes any doubt in `notes` even if the label is not changed.
+- **Anchoring check (optional):** the annotator labels a small subset **blind**, before seeing the suggestions. Agreement between the blind labels and the suggestions is reported in the README (REQ-006).
+- The model that suggests labels must be different from the models evaluated in M2.
+
+## 7. Output format
 
 One row per post, in `data/labels/<annotator>.csv`:
 
@@ -226,11 +246,12 @@ One row per post, in `data/labels/<annotator>.csv`:
 
 ---
 
-## 7. Changelog
+## 8. Changelog
 
 | Version | Date | Change |
 | :--- | :--- | :--- |
-| 0.1 | 2026-11-20 | First draft |
+| 0.1 | 2026-11-20 | First draft. Added `explicit` skip rule. |
+| 0.2 | 2026-11-20 | After pilot review: `outcome_only` and `no_decision` skip reasons, missing-context rule, WSB insult rule, FOMO excludes urgency aimed at readers, new overconfidence cue (claims experts are wrong), risk-acknowledged tie-break, unhedged predictions count as certainty claims, break-even rule for loss aversion, model-assisted annotation section. |
 
 ## References
 

@@ -18,8 +18,9 @@ Before each buy or sell, I write a short note explaining why. The detector:
 
 Bias detection is subjective. A model that "sounds right" isn't enough, so the project is built around measurement:
 
-- **Hand-labeled test set:** 300–500 real retail-investor posts, labeled under a written annotation guideline.
-- **Inter-annotator agreement:** a second person labels a subset independently. Their agreement (Cohen's kappa) shows how subjective the task is and what score is realistically achievable.
+- **Human-reviewed test set:** real retail-investor posts from r/WallStreetBets. An LLM suggests labels under a written annotation guideline, and every label is reviewed by a human. The share of suggestions the reviewer changed is reported.
+- **Rare biases oversampled:** keyword strata make sure each evaluated bias has enough examples. The set therefore does not follow WSB's natural class distribution.
+- **Different models for labeling and testing:** the model that suggested labels is never one of the models being evaluated.
 - **Baseline comparison:** the LLM agent is compared to a TF-IDF + logistic regression baseline on accuracy (macro-F1), cost and latency.
 - **No leakage:** synthetic data is used only for training, never for testing, and an automated check enforces this.
 - **Domain shift:** results are reported separately for public posts and my own decision notes.
@@ -33,7 +34,6 @@ _Coming after milestone M2._
 | :--- | :--- | :--- | :--- | :--- |
 | TF-IDF + LR baseline | – | – | – | – |
 | LLM agent | – | – | – | – |
-| Human agreement (kappa) | – | – | – | – |
 
 ## Design principles
 
@@ -53,7 +53,7 @@ Post-MVP: pgvector (semantic search), LangGraph (comparison with the hand-writte
 
 | Milestone | Scope | Status |
 | :--- | :--- | :--- |
-| M1 | Bias definitions, annotation guideline, labeled dataset, agreement | ⏳ Planned |
+| M1 | Bias definitions, annotation guideline, pilot, model-assisted labeled dataset | 🔄 In progress |
 | M2 | LLM bias analyzer, baseline, one-command eval, error analysis | ⏳ Planned |
 | M3 | Decision journal, CSV trade import, behavioral metrics, Streamlit UI | ⏳ Planned |
 | M4 | Semantic search over past decisions (RAG), Recall@5 | Post-MVP |
