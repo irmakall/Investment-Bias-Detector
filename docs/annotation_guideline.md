@@ -231,18 +231,23 @@ To keep the workload manageable, an LLM suggests labels and the annotator review
 
 ## 7. Output format
 
-One row per post, in `data/labels/<annotator>.csv`:
+Labeling happens in a **working file** under `data/raw/` (git-ignored), because it holds post texts. One row per post:
 
 | Column | Values |
 | :--- | :--- |
 | `id` | Reddit ID from the source dataset |
+| `text`, `text_tr` | Post text and a reading aid translation |
+| `checked` | `x` once the row has been reviewed |
 | `status` | `labeled` / `skip` / `unclear` |
 | `labels` | Pipe-separated, for example `fomo\|herd`. Empty unless `status = labeled` |
-| `evidence` | One phrase per label, pipe-separated in the same order |
-| `skip_reason` | Only when `status = skip` |
+| `evidence` | One phrase per bias label, pipe-separated in the same order. Empty for `no_bias` |
+| `skip_reason` | Only when `status = skip` (see Step 1) |
 | `notes` | Free text, optional |
-| `annotator` | Annotator ID |
-| `guideline_version` | For example `0.1` |
+| `suggested_*`, `suggested_by` | The LLM suggestion, never edited (§6) |
+| `annotator`, `guideline_version` | Who labeled, under which guideline version |
+
+`python -m src.data.labels validate` checks every rule in this guideline that code can check.
+`python -m src.data.labels export` writes `data/labels/<annotator>.csv` for git: IDs and labels only, **no text and no evidence**, and only when every row is checked and valid.
 
 ---
 
@@ -251,7 +256,7 @@ One row per post, in `data/labels/<annotator>.csv`:
 | Version | Date | Change |
 | :--- | :--- | :--- |
 | 0.1 | 2026-11-20 | First draft. Added `explicit` skip rule. |
-| 0.2 | 2026-11-20 | After pilot review: `outcome_only` and `no_decision` skip reasons, missing-context rule, WSB insult rule, FOMO excludes urgency aimed at readers, new overconfidence cue (claims experts are wrong), risk-acknowledged tie-break, unhedged predictions count as certainty claims, break-even rule for loss aversion, model-assisted annotation section. |
+| 0.2 | 2026-11-20 | After pilot review: `outcome_only` and `no_decision` skip reasons, missing-context rule, WSB insult rule, FOMO excludes urgency aimed at readers, new overconfidence cue (claims experts are wrong), risk-acknowledged tie-break, unhedged predictions count as certainty claims, break-even rule for loss aversion, model-assisted annotation section, working file vs exported file. |
 
 ## References
 

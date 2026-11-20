@@ -18,7 +18,7 @@ Before each buy or sell, I write a short note explaining why. The detector:
 
 Bias detection is subjective. A model that "sounds right" isn't enough, so the project is built around measurement:
 
-- **Human-reviewed test set:** real retail-investor posts from r/WallStreetBets. An LLM suggests labels under a written annotation guideline, and every label is reviewed by a human. The share of suggestions the reviewer changed is reported.
+- **Labeled test set:** 510 real retail-investor posts from r/WallStreetBets, labeled under a written annotation guideline. Labels were suggested by an LLM (Claude) and reviewed by the author.
 - **Rare biases oversampled:** keyword strata make sure each evaluated bias has enough examples. The set therefore does not follow WSB's natural class distribution.
 - **Different models for labeling and testing:** the model that suggested labels is never one of the models being evaluated.
 - **Baseline comparison:** the LLM agent is compared to a TF-IDF + logistic regression baseline on accuracy (macro-F1), cost and latency.
@@ -34,6 +34,24 @@ _Coming after milestone M2._
 | :--- | :--- | :--- | :--- | :--- |
 | TF-IDF + LR baseline | – | – | – | – |
 | LLM agent | – | – | – | – |
+
+## Reproducing the dataset
+
+The raw WSB files go in `data/raw/` (git-ignored, see [data/SOURCES.md](data/SOURCES.md)). Then, from the repo root:
+
+```bash
+pip install -r requirements.txt
+python -m src.data.sample pilot      # 50-post pilot
+python -m src.data.sample main       # 320-post main sample (general + keyword strata)
+python -m src.data.sample topup      # 140-post top-up for rare biases
+python -m src.data.labels validate   # check labels against the guideline
+python -m src.data.labels export     # write data/labels/ (IDs + labels, no text)
+pytest
+```
+
+The code follows the three steps of the pipeline: `src/data/load.py` (load and filter), `src/data/sample.py` (sampling) and `src/data/labels.py` (labeling rules, checks, export).
+
+The same seed always produces the same samples.
 
 ## Design principles
 
