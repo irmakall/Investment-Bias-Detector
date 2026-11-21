@@ -12,6 +12,14 @@ from src.llm.schema import Analysis
 
 GUIDELINE_VERSION = "0.3"
 
+# REQUIREMENTS §4.4: which checks to ask about first when a bias is detected.
+PRIORITY_CHECKS = {
+    "fomo": ["valuation", "research", "time_horizon"],
+    "overconfidence": ["position_size", "invalidation", "research"],
+    "anchoring": ["valuation", "research"],
+    "loss_aversion": ["invalidation", "opportunity_cost"],
+}
+
 SYSTEM_PROMPT = """\
 You analyze short notes in which a retail investor explains a buy, sell or hold decision.
 Your job has two parts: (1) label the cognitive bias in the reasoning, (2) find which

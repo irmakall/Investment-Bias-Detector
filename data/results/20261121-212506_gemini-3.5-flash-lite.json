@@ -1,0 +1,217 @@
+{
+  "setup": {
+    "date": "2026-11-21T21:25:06",
+    "git_commit": "20a88e7-dirty",
+    "llm_model": "gemini-3.5-flash-lite",
+    "prompt_hash": "33c7cf88f91e",
+    "guideline_version": "0.3",
+    "test_hash": "38e01cf93833b6a793a1ff248fd414af35b1f2f1d738eb1fa933afc52596f91b",
+    "seed": 42,
+    "n_test": 82,
+    "limit": null
+  },
+  "baseline": {
+    "macro_f1": 0.4332,
+    "per_class": {
+      "anchoring": {
+        "precision": 0.4375,
+        "recall": 0.7778,
+        "f1-score": 0.56,
+        "support": 9.0
+      },
+      "fomo": {
+        "precision": 0.3333,
+        "recall": 0.2857,
+        "f1-score": 0.3077,
+        "support": 7.0
+      },
+      "loss_aversion": {
+        "precision": 0.4,
+        "recall": 0.3333,
+        "f1-score": 0.3636,
+        "support": 6.0
+      },
+      "no_bias": {
+        "precision": 0.7045,
+        "recall": 0.6458,
+        "f1-score": 0.6739,
+        "support": 48.0
+      },
+      "overconfidence": {
+        "precision": 0.2727,
+        "recall": 0.25,
+        "f1-score": 0.2609,
+        "support": 12.0
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "anchoring",
+        "fomo",
+        "loss_aversion",
+        "no_bias",
+        "overconfidence"
+      ],
+      "rows_gold_cols_pred": [
+        [
+          7,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          1,
+          2,
+          0,
+          3,
+          1
+        ],
+        [
+          1,
+          1,
+          2,
+          2,
+          0
+        ],
+        [
+          4,
+          3,
+          3,
+          31,
+          7
+        ],
+        [
+          3,
+          0,
+          0,
+          6,
+          3
+        ]
+      ]
+    },
+    "by_stratum": {
+      "general": {
+        "n": 23,
+        "macro_f1": 0.4211
+      },
+      "keyword": {
+        "n": 53,
+        "macro_f1": 0.4521
+      },
+      "pilot": {
+        "n": 6,
+        "macro_f1": 0.375
+      }
+    },
+    "predict_ms_per_item": 0.031
+  },
+  "llm": {
+    "macro_f1": 0.6445,
+    "per_class": {
+      "anchoring": {
+        "precision": 0.7143,
+        "recall": 0.5556,
+        "f1-score": 0.625,
+        "support": 9.0
+      },
+      "fomo": {
+        "precision": 0.7778,
+        "recall": 1.0,
+        "f1-score": 0.875,
+        "support": 7.0
+      },
+      "loss_aversion": {
+        "precision": 0.375,
+        "recall": 1.0,
+        "f1-score": 0.5455,
+        "support": 6.0
+      },
+      "no_bias": {
+        "precision": 0.8846,
+        "recall": 0.4792,
+        "f1-score": 0.6216,
+        "support": 48.0
+      },
+      "overconfidence": {
+        "precision": 0.4167,
+        "recall": 0.8333,
+        "f1-score": 0.5556,
+        "support": 12.0
+      }
+    },
+    "confusion_matrix": {
+      "labels": [
+        "anchoring",
+        "fomo",
+        "loss_aversion",
+        "no_bias",
+        "overconfidence"
+      ],
+      "rows_gold_cols_pred": [
+        [
+          5,
+          0,
+          0,
+          3,
+          1
+        ],
+        [
+          0,
+          7,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          6,
+          0,
+          0
+        ],
+        [
+          2,
+          1,
+          9,
+          23,
+          13
+        ],
+        [
+          0,
+          1,
+          1,
+          0,
+          10
+        ]
+      ]
+    },
+    "by_stratum": {
+      "general": {
+        "n": 23,
+        "macro_f1": 0.6046
+      },
+      "keyword": {
+        "n": 53,
+        "macro_f1": 0.652
+      },
+      "pilot": {
+        "n": 6,
+        "macro_f1": 0.5357
+      }
+    },
+    "n_errors": 0,
+    "n_retried": 0,
+    "evidence_n": 56,
+    "ungrounded_evidence_rate": 0.0,
+    "questions_total": 246,
+    "questions_flagged_advice": 2,
+    "priority_check_rule_n": 56,
+    "priority_check_rule_rate": 0.9821,
+    "latency_p50_s": 1.703,
+    "latency_p95_s": 7.169,
+    "input_tokens_per_item": 1097.7,
+    "output_tokens_per_item": 211.5,
+    "n_cached": 70
+  }
+}

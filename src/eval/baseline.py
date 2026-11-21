@@ -75,9 +75,8 @@ def top_features(model: Pipeline, n: int = 10) -> None:
         print(f"  {label:15s} " + ", ".join(words[top]))
 
 
-def main() -> None:
-    df = load_split()
-    train, test = df[df["split"] == "train"], df[df["split"] == "test"]
+def train_and_predict(train: pd.DataFrame, test: pd.DataFrame) -> tuple:
+    """Fit on train, predict test. Returns (model, y_pred, fit_s, predict_s). Used by run.py too."""
     model = build_model()
 
     start = time.perf_counter()
@@ -87,6 +86,13 @@ def main() -> None:
     start = time.perf_counter()
     y_pred = model.predict(test["text"])
     predict_s = time.perf_counter() - start
+    return model, y_pred, fit_s, predict_s
+
+
+def main() -> None:
+    df = load_split()
+    train, test = df[df["split"] == "train"], df[df["split"] == "test"]
+    model, y_pred, fit_s, predict_s = train_and_predict(train, test)
 
     print(f"train n={len(train)}  test n={len(test)}  fit {fit_s:.2f}s  predict {predict_s * 1000:.1f}ms\n")
     evaluate(test, y_pred)

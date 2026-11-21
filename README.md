@@ -21,19 +21,22 @@ Bias detection is subjective. A model that "sounds right" isn't enough, so the p
 - **Labeled test set:** 510 real retail-investor posts from r/WallStreetBets, labeled under a written annotation guideline. Labels were suggested by an LLM (Claude), reviewed by the author and corrected where needed. Corrections were not logged separately, so the share of changed suggestions is not reported.
 - **Rare biases oversampled:** keyword strata make sure each evaluated bias has enough examples. The set therefore does not follow WSB's natural class distribution.
 - **Different models for labeling and testing:** the model that suggested labels is never one of the models being evaluated.
-- **Baseline comparison:** the LLM agent is compared to a TF-IDF + logistic regression baseline on accuracy (macro-F1), cost and latency.
-- **No leakage:** synthetic data is used only for training, never for testing, and an automated check enforces this.
-- **Domain shift:** results are reported separately for public posts and my own decision notes.
+- **Baseline comparison:** the LLM is compared to a TF-IDF + logistic regression baseline on accuracy (macro-F1), cost and latency.
+- **No leakage:** the test split is fixed, frozen after the first eval run and checked by hash before every run; the baseline learns its vocabulary from train only.
 - **Reproducible:** the full evaluation runs with one command.
 
 ## Results
 
-_Coming after milestone M2._
+Test set: 82 posts · run 2026-11-21T21:25:06 · commit 20a88e7-dirty
 
-| Model | Macro-F1 (posts) | Macro-F1 (own notes) | Cost / item | p95 latency |
-| :--- | :--- | :--- | :--- | :--- |
-| TF-IDF + LR baseline | – | – | – | – |
-| LLM agent | – | – | – | – |
+| Model | Macro-F1 | Macro-F1 (general / keyword) | Latency p50 / p95 | Tokens in / out per item |
+| :--- | ---: | :--- | :--- | :--- |
+| TF-IDF + LR baseline | 0.433 | 0.421 / 0.452 | 0.03 ms | – |
+| gemini-3.5-flash-lite (zero-shot) | 0.644 | 0.605 / 0.652 | 1.703 s / 7.169 s | 1097.7 / 211.5 |
+
+LLM: 0 failed answers, ungrounded evidence 0.0, 2 of 246 questions flagged as advice, priority-check rule met in 0.9821 of 56 applicable notes.
+
+Full metrics per run: `data/results/`. Reproduce with `python -m src.eval.run` (see below).
 
 ## Reproducing the dataset
 
@@ -57,7 +60,7 @@ The same seed always produces the same samples.
 
 - **Numbers from code, words from the LLM.** Every metric is computed in Python. The LLM only explains numbers it is given, and code checks that it didn't invent any.
 - **Evidence-grounded flags.** Each flagged bias cites a span from the note. Code verifies that the span exists.
-- **Visible agent loop.** A hand-written function-calling loop with no agent framework, so every prompt is inspectable during eval.
+- **Visible LLM calls.** No agent framework: classification is one structured call, so every prompt is inspectable during eval. A hand-written agent loop comes later, with retrieval over past decisions.
 - **Privacy.** The public demo uses a fictional portfolio. Real trades never leave the private environment.
 - **Narrow and deep.** Few features, each finished and measured.
 
