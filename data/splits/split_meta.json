@@ -19,6 +19,7 @@
     "overconfidence": 12
   },
   "test_hash": "38e01cf93833b6a793a1ff248fd414af35b1f2f1d738eb1fa933afc52596f91b",
-  "frozen": false,
-  "created": "2026-11-21"
+  "frozen": true,
+  "created": "2026-11-21",
+  "frozen_on": "2026-11-21"
 }
