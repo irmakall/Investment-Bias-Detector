@@ -49,27 +49,17 @@ def validate_row(row: pd.Series) -> list:
         return [f"unknown status '{status}'"]
 
     if status == "labeled":
-        if not labels:
-            errors.append("labeled row has no labels")
-        elif NO_BIAS in labels:
-            if len(labels) > 1:
-                errors.append("no_bias combined with another label")
+        if len(labels) != 1:
+            errors.append(f"needs exactly one label, got {len(labels)}")
+        elif labels[0] == NO_BIAS:
             if evidence:
                 errors.append("no_bias should have no evidence")
-        else:
-            if len(labels) > 2:
-                errors.append("more than 2 bias labels")
-            if len(set(labels)) != len(labels):
-                errors.append("duplicate label")
-            unknown = set(labels) - BIAS_LABELS
-            if unknown:
-                errors.append(f"unknown label(s): {sorted(unknown)}")
-            if len(evidence) != len(labels):
-                errors.append("needs exactly one evidence phrase per label")
-            text = normalize(row["text"])
-            for phrase in evidence:
-                if normalize(phrase) not in text:
-                    errors.append(f"evidence not found in text: '{phrase}'")
+        elif labels[0] not in BIAS_LABELS:
+            errors.append(f"unknown label '{labels[0]}'")
+        elif len(evidence) != 1:
+            errors.append("needs exactly one evidence phrase")
+        elif normalize(evidence[0]) not in normalize(row["text"]):
+            errors.append(f"evidence not found in text: '{evidence[0]}'")
     else:
         if labels:
             errors.append(f"{status} row should have no labels")
@@ -86,24 +76,18 @@ def read_labeled(path) -> pd.DataFrame:
     return pd.read_csv(path, encoding="utf-8-sig", keep_default_na=False, dtype=str)
 
 
-def changed_suggestions(df: pd.DataFrame) -> pd.Series:
-    """True where the reviewer changed the suggested status or labels."""
-    return (df["status"] != df["suggested_status"]) | (df["labels"] != df["suggested_labels"])
-
-
 # ---------------------------------------------------------------------------
 # build-review: merge suggestion batches into one review file
 # ---------------------------------------------------------------------------
 
 BORDERLINE_MARKERS = "Sınırda|KILAVUZ EKSİĞİ"
 REVIEW_COLUMNS = ["row", "sample", "n", "id", "source_type", "stratum", "borderline", "text", "text_tr",
-                  "checked", "status", "labels", "evidence", "skip_reason", "notes", "claude_note",
-                  "suggested_status", "suggested_labels", "suggested_evidence", "suggested_skip_reason",
+                  "status", "labels", "evidence", "skip_reason", "notes", "claude_note",
                   "suggested_by", "annotator", "guideline_version"]
 
 
 def build_review(force: bool) -> None:
-    """Unchecked borderline rows first, then other unchecked rows, then checked rows.
+    """Borderline rows first, so the reviewer sees the doubtful suggestions early.
 
     Refuses to overwrite an existing review file without --force, because that
     file holds the reviewer's work.
@@ -120,11 +104,8 @@ def build_review(force: bool) -> None:
 
     df["n"] = df["n"].astype(int)
     df["borderline"] = df["claude_note"].str.contains(BORDERLINE_MARKERS).map({True: "x", False: ""})
-    checked = df["checked"] == "x"
-    df["_group"] = 1
-    df.loc[~checked & (df["borderline"] == "x"), "_group"] = 0
-    df.loc[checked, "_group"] = 2
-    df = df.sort_values(["_group", "sample", "n"], kind="stable").reset_index(drop=True)
+    df["_first"] = df["borderline"] != "x"   # False sorts first
+    df = df.sort_values(["_first", "sample", "n"], kind="stable").reset_index(drop=True)
     df.insert(0, "row", range(1, len(df) + 1))
     df[REVIEW_COLUMNS].to_csv(REVIEW_FILE, index=False, encoding="utf-8-sig")
     print(f"Saved {len(df)} rows to {REVIEW_FILE}")
@@ -138,7 +119,6 @@ def build_review(force: bool) -> None:
 def validate_file(path: Path) -> int:
     """Print errors and a summary for one file. Returns the number of errors."""
     df = read_labeled(path)
-    checked = df["checked"].str.strip() == "x"
     n_errors = 0
     for _, row in df.iterrows():
         for message in validate_row(row):
@@ -147,12 +127,9 @@ def validate_file(path: Path) -> int:
 
     labeled = df[df["status"] == "labeled"]
     counts = labeled["labels"].map(split).explode().value_counts().to_dict()
-    print(f"{path.name}: {len(df)} rows | checked {checked.sum()} | to review {(~checked).sum()} | errors {n_errors}")
+    print(f"{path.name}: {len(df)} rows | errors {n_errors}")
     print(f"  status: {df['status'].value_counts().to_dict()}")
     print(f"  labels: {counts}")
-    if checked.any():
-        rate = changed_suggestions(df[checked]).mean()
-        print(f"  suggestions changed by reviewer: {rate:.1%} of {checked.sum()} checked rows")
     return n_errors
 
 
@@ -168,18 +145,17 @@ def validate(files: list) -> None:
 
 SOURCE = "socialgrep/reddit-wallstreetbets-aug-2021"
 EXPORT_COLUMNS = ["id", "source", "source_type", "sample", "stratum", "status", "labels", "skip_reason",
-                  "suggested_status", "suggested_labels", "suggested_by", "annotator", "guideline_version"]
+                  "suggested_by", "annotator", "guideline_version"]
 
 
 def export() -> None:
-    """Refuses to export while any row is unchecked or breaks a guideline rule."""
+    """Refuses to export while any row breaks a guideline rule."""
     pilot = read_labeled(PILOT_LABELS_FILE).assign(sample="pilot", stratum="")
     df = pd.concat([pilot, read_labeled(REVIEW_FILE)], ignore_index=True)
 
-    unchecked = (df["checked"].str.strip() != "x").sum()
     invalid = sum(bool(validate_row(row)) for _, row in df.iterrows())
-    if unchecked or invalid:
-        sys.exit(f"Not exported: {unchecked} unchecked rows, {invalid} invalid rows. "
+    if invalid:
+        sys.exit(f"Not exported: {invalid} invalid rows. "
                  "Run python -m src.data.labels validate for details.")
     if not df["id"].is_unique:
         sys.exit("Not exported: duplicate IDs.")

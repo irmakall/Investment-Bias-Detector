@@ -1,6 +1,6 @@
 # Annotation Guideline
 
-**Version:** 0.2 · **Date:** 2026-11-20 · **Status:** Revised after the first pilot review (REQ-004)
+**Version:** 0.3 · **Date:** 2026-11-21 · **Status:** Single-label (one label per post)
 
 This guideline tells annotators how to label investor posts for cognitive biases. Two annotators following it independently should reach the same labels. When they don't, either the post is truly ambiguous or this guideline needs a fix. The pilot exists to find out which.
 
@@ -45,16 +45,15 @@ Record the reason in `skip_reason` using one of: `question`, `news`, `meme`, `ot
 
 Go through the six biases in §4. A label requires its **required cue** (§4). Supporting cues alone are not enough.
 
-### Step 3: Apply the multi-label rules
+### Step 3: Choose one label
 
-- Give **1 or 2** bias labels, or exactly `no_bias`.
-- `no_bias` never appears together with another label.
-- If 3 or more biases seem to apply, keep the 2 with the **most explicit** text evidence.
-- When two labels overlap, use the tie-break rules in §5.
+- Give **exactly one** label: one bias or `no_bias`.
+- If more than one bias seems to apply, choose the one **the decision rests on**: the bias that, if removed, would leave the decision without its reason. The others are context.
+- When two labels overlap, use the tie-break rules in §5. If neither clearly dominates, use `unclear` (Step 5).
 
 ### Step 4: Record evidence
 
-For each bias label, copy the **shortest phrase** from the post that triggered it into `evidence`. This makes disagreements easy to discuss and errors easy to analyze.
+For the bias label, copy the **shortest phrase** from the post that triggered it into `evidence`. This makes disagreements easy to discuss and errors easy to analyze.
 
 ### Step 5: Unclear?
 
@@ -212,9 +211,9 @@ All examples are invented and written in the style of WSB posts.
 
 | Overlap | Rule | Example |
 | :--- | :--- | :--- |
-| `fomo` vs `herd` | **Others as the reason** → `herd`. **Urgency or fear of missing out** → `fomo`. Both present → both labels. | "WSB is all in and it's up 80% today, I need in NOW" → `fomo` + `herd` |
+| `fomo` vs `herd` | **Others as the reason** → `herd`. **Urgency or fear of missing out** → `fomo`. Both present → the one the decision rests on. | "WSB is all in and it's up 80% today, I need in NOW" → `fomo` (the urgency drives the entry, the crowd is context) |
 | `anchoring` vs `loss_aversion` | The reference is **the author's own buy price** and the decision is **not selling** → `loss_aversion`. The reference is **any past price** used to judge a **buy** as cheap → `anchoring`. | "Not selling below my $250 cost" → `loss_aversion`. "Was $300, $200 is cheap" → `anchoring` |
-| `fomo` vs `overconfidence` | Urgency → `fomo`. Certainty → `overconfidence`. Both explicit → both labels. | "Guaranteed 10-bagger, last chance to get in under $5" → both |
+| `fomo` vs `overconfidence` | Urgency → `fomo`. Certainty → `overconfidence`. Both explicit → the one the decision rests on, otherwise `unclear`. | "Guaranteed 10-bagger, buying a few more" → `overconfidence` |
 | `fomo` vs `anchoring` | If the main driver is urgency and the price is only context → `fomo` only. | "Last chance under $20 before earnings" → `fomo` |
 | `overconfidence` with risk acknowledged | An extreme position plus an explicit risk acknowledgment ("how screwed am I?", "I'm fine if it goes to zero") → not `overconfidence`. | "Threw my last 2.4K into calls. How screwed am I?" → `no_bias` |
 
@@ -224,8 +223,8 @@ All examples are invented and written in the style of WSB posts.
 
 To keep the workload manageable, an LLM suggests labels and the annotator reviews them (REQ-005).
 
-- Suggestions are stored in separate `suggested_*` columns and are never edited. The final labels go in `status`, `labels`, `evidence`, `skip_reason`.
-- The annotator marks each reviewed row with `checked = x`, and writes any doubt in `notes` even if the label is not changed.
+- The LLM fills in `status`, `labels`, `evidence` and `skip_reason`. The annotator reads every row and corrects these columns in place when needed, and writes any doubt in `notes` even if the label is not changed.
+- Changes to the suggestions are not tracked: the final file does not keep the original suggestions. `suggested_by` records which model made them.
 - **Anchoring check (optional):** the annotator labels a small subset **blind**, before seeing the suggestions. Agreement between the blind labels and the suggestions is reported in the README (REQ-006).
 - The model that suggests labels must be different from the models evaluated in M2.
 
@@ -237,17 +236,16 @@ Labeling happens in a **working file** under `data/raw/` (git-ignored), because 
 | :--- | :--- |
 | `id` | Reddit ID from the source dataset |
 | `text`, `text_tr` | Post text and a reading aid translation |
-| `checked` | `x` once the row has been reviewed |
 | `status` | `labeled` / `skip` / `unclear` |
-| `labels` | Pipe-separated, for example `fomo\|herd`. Empty unless `status = labeled` |
-| `evidence` | One phrase per bias label, pipe-separated in the same order. Empty for `no_bias` |
+| `labels` | Exactly one label, for example `fomo`. Empty unless `status = labeled` |
+| `evidence` | One phrase for the bias label. Empty for `no_bias` |
 | `skip_reason` | Only when `status = skip` (see Step 1) |
 | `notes` | Free text, optional |
-| `suggested_*`, `suggested_by` | The LLM suggestion, never edited (§6) |
+| `suggested_by` | The model that suggested the labels (§6) |
 | `annotator`, `guideline_version` | Who labeled, under which guideline version |
 
 `python -m src.data.labels validate` checks every rule in this guideline that code can check.
-`python -m src.data.labels export` writes `data/labels/<annotator>.csv` for git: IDs and labels only, **no text and no evidence**, and only when every row is checked and valid.
+`python -m src.data.labels export` writes `data/labels/<annotator>.csv` for git: IDs and labels only, **no text and no evidence**, and only when every row is valid.
 
 ---
 
@@ -257,6 +255,8 @@ Labeling happens in a **working file** under `data/raw/` (git-ignored), because 
 | :--- | :--- | :--- |
 | 0.1 | 2026-11-20 | First draft. Added `explicit` skip rule. |
 | 0.2 | 2026-11-20 | After pilot review: `outcome_only` and `no_decision` skip reasons, missing-context rule, WSB insult rule, FOMO excludes urgency aimed at readers, new overconfidence cue (claims experts are wrong), risk-acknowledged tie-break, unhedged predictions count as certainty claims, break-even rule for loss aversion, model-assisted annotation section, working file vs exported file. |
+| 0.2 | 2026-11-21 | Process only, labeling rules unchanged: `checked` and `suggested_*` columns removed, review changes are not tracked (§6, §7). |
+| 0.3 | 2026-11-21 | Single-label: exactly one label per post, chosen by "the bias the decision rests on" (Step 3). Tie-break rules no longer give two labels (§5). The 14 two-label posts from v0.2 are re-labeled by hand under this rule. |
 
 ## References
 

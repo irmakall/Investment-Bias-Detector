@@ -17,13 +17,19 @@ def test_evidence_must_be_in_text():
     assert validate_row(row(labels="fomo", evidence="last chance"))
 
 
-def test_no_bias_must_be_alone_and_without_evidence():
-    assert validate_row(row(labels="no_bias|fomo", evidence="x"))
+def test_no_bias_has_no_evidence():
     assert validate_row(row(labels="no_bias")) == []
+    assert validate_row(row(labels="no_bias", evidence="not selling until"))
 
 
-def test_at_most_two_bias_labels():
-    assert validate_row(row(labels="fomo|herd|anchoring", evidence="a|b|c"))
+def test_exactly_one_label():
+    assert validate_row(row(labels="loss_aversion|fomo", evidence="not selling until|back to even"))
+    assert validate_row(row(labels="no_bias|fomo", evidence="x"))
+    assert validate_row(row(status="labeled"))                      # no label at all
+
+
+def test_unknown_label():
+    assert validate_row(row(labels="greed", evidence="not selling until"))
 
 
 def test_skip_needs_known_reason_and_no_labels():

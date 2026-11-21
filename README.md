@@ -18,7 +18,7 @@ Before each buy or sell, I write a short note explaining why. The detector:
 
 Bias detection is subjective. A model that "sounds right" isn't enough, so the project is built around measurement:
 
-- **Labeled test set:** 510 real retail-investor posts from r/WallStreetBets, labeled under a written annotation guideline. Labels were suggested by an LLM (Claude) and reviewed by the author.
+- **Labeled test set:** 510 real retail-investor posts from r/WallStreetBets, labeled under a written annotation guideline. Labels were suggested by an LLM (Claude), reviewed by the author and corrected where needed. Corrections were not logged separately, so the share of changed suggestions is not reported.
 - **Rare biases oversampled:** keyword strata make sure each evaluated bias has enough examples. The set therefore does not follow WSB's natural class distribution.
 - **Different models for labeling and testing:** the model that suggested labels is never one of the models being evaluated.
 - **Baseline comparison:** the LLM agent is compared to a TF-IDF + logistic regression baseline on accuracy (macro-F1), cost and latency.

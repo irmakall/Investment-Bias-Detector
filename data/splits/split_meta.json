@@ -1,0 +1,24 @@
+{
+  "source_file": "data/labels/irmak.csv",
+  "seed": 42,
+  "test_size": 0.3,
+  "n_train": 191,
+  "n_test": 82,
+  "train_counts": {
+    "anchoring": 21,
+    "fomo": 16,
+    "loss_aversion": 15,
+    "no_bias": 110,
+    "overconfidence": 29
+  },
+  "test_counts": {
+    "anchoring": 9,
+    "fomo": 7,
+    "loss_aversion": 6,
+    "no_bias": 48,
+    "overconfidence": 12
+  },
+  "test_hash": "38e01cf93833b6a793a1ff248fd414af35b1f2f1d738eb1fa933afc52596f91b",
+  "frozen": false,
+  "created": "2026-11-21"
+}
