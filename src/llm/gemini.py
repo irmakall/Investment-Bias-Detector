@@ -1,8 +1,10 @@
 """Gemini call for one note (REQ-011). All Gemini-specific code lives here (NFR-008).
 
+Configuration: GEMINI_API_KEY and GEMINI_MODEL are read from the environment.
+They can also be put in a .env file at the repo root (copy .env.example). .env is
+git-ignored; a variable already set in the shell wins over the file.
+
 Usage (quick manual check):
-    export GEMINI_API_KEY=...            # from Google AI Studio, never committed
-    export GEMINI_MODEL=...              # exact model ID copied from AI Studio
     python -m src.llm.gemini "Down 30% but not selling until I'm back to even."
 
 analyze() never raises. It returns either
@@ -15,13 +17,17 @@ import os
 import sys
 import time
 
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pydantic import ValidationError
 
+from src.data.load import ROOT
 from src.data.split import SEED
 from src.llm.prompt import SYSTEM_PROMPT, build_user_message
 from src.llm.schema import Analysis
+
+load_dotenv(ROOT / ".env", override=False)   # no-op when the file doesn't exist
 
 MAX_ATTEMPTS = 2   # first try + one retry (REQ-011)
 TIMEOUT_MS = 60_000   # a call that takes longer than this is reported as an error instead of hanging
@@ -30,7 +36,7 @@ TIMEOUT_MS = 60_000   # a call that takes longer than this is reported as an err
 def get_client() -> genai.Client:
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
-        raise RuntimeError("Set GEMINI_API_KEY (Google AI Studio -> API keys).")
+        raise RuntimeError("Set GEMINI_API_KEY in .env (copy .env.example) or in the shell.")
     # One HTTP attempt per call: our own loop decides about retries, so a 429 shows up
     # as an error at once instead of silent backoff waits inside the SDK.
     options = types.HttpOptions(timeout=TIMEOUT_MS, retry_options=types.HttpRetryOptions(attempts=1))
