@@ -126,8 +126,8 @@ The app cannot know whether the author actually read a report. It only sees whet
 
 | ID | Requirement | Done when | Priority | Status |
 | :--- | :--- | :--- | :--- | :---: |
-| **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to the local SQLite database (`data/private/journal.db`), runs the analysis (REQ-011) and stores the result linked to the note. | Must | ⏳ |
-| **REQ-021** | I can see the analysis next to the note. | The UI shows the label, evidence highlighted in the note, rationale, missing checks and questions. | Must | ⏳ |
+| **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to the local SQLite database (`data/private/journal.db`), runs the analysis (REQ-011) and stores the result linked to the note. | Must | ✅ |
+| **REQ-021** | I can see the analysis next to the note. | The UI shows the label, evidence highlighted in the note, rationale, missing checks and questions. | Must | ✅ |
 | **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ✅ |
 | **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ✅ |
 | **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ⏳ |

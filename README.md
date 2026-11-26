@@ -56,6 +56,16 @@ The code follows the three steps of the pipeline: `src/data/load.py` (load and f
 
 The same seed always produces the same samples.
 
+## Running the journal
+
+```bash
+pip install -r requirements.txt
+export GEMINI_API_KEY=...   GEMINI_MODEL=...   # same as the eval
+streamlit run app.py
+```
+
+Notes and analyses are stored in `data/private/journal.db`, which is git-ignored and never leaves your machine. Only the note text is sent to Gemini.
+
 ## Design principles
 
 - **Numbers from code, words from the LLM.** Every metric is computed in Python. The LLM only explains numbers it is given, and code checks that it didn't invent any.
