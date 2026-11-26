@@ -1,0 +1,7 @@
+date,ticker,market,side,quantity,price,currency,fee
+2026-09-03,avgo,US,buy,2,310.50,USD,1.00
+2026-09-15,THYAO,BIST,buy,50,285.00,TRY,
+2026-09-20,THYAO,BIST,buy,-50,285.00,TRY,0
+2026-10-20,AVGO,NASDAQ,sell,2,345.00,USD,1.00
+03/11/2026,AAPL,US,buy,1,230,USD,0
+2026-10-20,AVGO,US,sell,2,345.00,USD,1.00

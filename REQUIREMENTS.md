@@ -128,7 +128,7 @@ The app cannot know whether the author actually read a report. It only sees whet
 | :--- | :--- | :--- | :--- | :---: |
 | **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to the local SQLite database (`data/private/journal.db`), runs the analysis (REQ-011) and stores the result linked to the note. | Must | ⏳ |
 | **REQ-021** | I can see the analysis next to the note. | The UI shows the label, evidence highlighted in the note, rationale, missing checks and questions. | Must | ⏳ |
-| **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ⏳ |
+| **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ✅ |
 | **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ⏳ |
 | **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ⏳ |
 | **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and never opens `data/private/`. | Must | ⏳ |
@@ -201,6 +201,7 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 | :--- | :--- | :--- |
 | Final checklist | REQ-027 | §4.4 is a draft. v0.3 added `research` after the first own note (AVGO). Revisit after ~10 own notes. |
 | Embedding model | M4 | Post-MVP. |
+| Identical same-day trades | REQ-022 | A trade's fingerprint is built from its fields, so two real trades with the same date, ticker, side, quantity, price and fee are imported as one. A unique trade ID column (for example a Midas order number) would fix this. Accepted as a known limitation for now. |
 
 ### Decided
 
