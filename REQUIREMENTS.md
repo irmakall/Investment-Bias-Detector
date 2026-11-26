@@ -129,7 +129,7 @@ The app cannot know whether the author actually read a report. It only sees whet
 | **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to the local SQLite database (`data/private/journal.db`), runs the analysis (REQ-011) and stores the result linked to the note. | Must | ⏳ |
 | **REQ-021** | I can see the analysis next to the note. | The UI shows the label, evidence highlighted in the note, rationale, missing checks and questions. | Must | ⏳ |
 | **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ✅ |
-| **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ⏳ |
+| **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ✅ |
 | **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ⏳ |
 | **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and never opens `data/private/`. | Must | ⏳ |
 
@@ -208,6 +208,7 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 | Decision | Date | Choice and why |
 | :--- | :--- | :--- |
 | LLM provider | 2026-11-21 | **Gemini (Flash models)** for M2. Known API from Briefly, free tier is enough for ~82 test items. Not Claude, because Claude suggested the labels (REQ-005). The free tier is used for both the WSB posts and my own notes. Free-tier inputs may be used to improve Google's products and may be read by human reviewers, so notes never contain personal or account details (name, broker account, portfolio value, income), and numbers such as position size are filled in by code and never sent to the model (REQ-027). The exact model ID is recorded per eval run (REQ-017), because Gemini model names change often. NFR-008 keeps a second provider possible. |
+| Cost method | 2026-11-26 | **Weighted average cost, as Midas shows it.** Only buys change the average, sells and fees don't, and a fully sold position starts fresh. Holding period uses the quantity-weighted average buy date, the same idea applied to time. Matching Midas means the numbers agree with what I see in the app. Sells with no earlier buy in the data are reported as unmatched and left out of the metrics. The disposition proxy is median holding days of losers divided by winners (> 1: losers held longer). |
 | Storage | 2026-11-21 | **SQLite** (Python standard library) for the MVP, in the git-ignored `data/private/`. A single-user journal needs no cloud database, real notes stay on the local machine, and the public demo needs no keys or separate tables. Supabase (Postgres + pgvector) comes with M4, where vector search is actually needed; the tables are plain SQL, so the move is small. |
 
 ## 10. Licensing and data-use policy
