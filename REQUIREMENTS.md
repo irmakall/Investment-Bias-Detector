@@ -1,8 +1,8 @@
 # Investment Bias Detector — Requirements
 
-**Version:** 0.3 · **Date:** 2026-11-20 · **Status:** MVP scope agreed, open decisions listed in §9
+**Version:** 0.4 · **Date:** 2026-11-26 · **Status:** MVP scope agreed, open decisions listed in §9
 
-**Changelog:** 0.3 — `research` check added to the financial literacy checklist (§4.4) after reviewing the first own note; REQ-007 split implemented; REQ-005 simplified: reviewer changes to suggestions are no longer tracked (no `checked` or `suggested_*` columns); the dataset is now single-label (§4.2), so every item has exactly one label; classification is one structured LLM call, and the hand-written agent loop (REQ-014) moves to M4, where a tool is actually needed; scope cut to the core: Should/Could items removed, REQ-012 and REQ-019 raised to Must, own notes (REQ-009) moved to post-MVP; synthetic data (REQ-008) cut; storage is SQLite until M4. 0.2 — financial literacy checklist (§4.4) with checklist-targeted questions (REQ-027), question quality eval (REQ-028) and checklist coverage over time (REQ-029); 4 evaluated biases after the pilot; stratified sampling; model-assisted labeling with a single reviewer; requirements rewritten as requirement + done-when.
+**Changelog:** 0.4 — M3.5 guided reflection added (§5.4): curated how-to guides per check, answers to the questions, LLM check of whether an answer covers its check, the bias label stays unchanged, and a proceed/change/cancel outcome after reflecting. Planned after M3 and the M2 error analysis. 0.3 — `research` check added to the financial literacy checklist (§4.4) after reviewing the first own note; REQ-007 split implemented; REQ-005 simplified: reviewer changes to suggestions are no longer tracked (no `checked` or `suggested_*` columns); the dataset is now single-label (§4.2), so every item has exactly one label; classification is one structured LLM call, and the hand-written agent loop (REQ-014) moves to M4, where a tool is actually needed; scope cut to the core: Should/Could items removed, REQ-012 and REQ-019 raised to Must, own notes (REQ-009) moved to post-MVP; synthetic data (REQ-008) cut; storage is SQLite until M4. 0.2 — financial literacy checklist (§4.4) with checklist-targeted questions (REQ-027), question quality eval (REQ-028) and checklist coverage over time (REQ-029); 4 evaluated biases after the pilot; stratified sampling; model-assisted labeling with a single reviewer; requirements rewritten as requirement + done-when.
 
 ## 1. Purpose
 
@@ -29,6 +29,7 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 | **M1** Dataset | Bias definitions, annotation guideline, pilot, model-assisted labeled dataset, train/test split | ✅ |
 | **M2** Classifier + eval | LLM bias analyzer, checklist-targeted questions, TF-IDF baseline, one-command eval harness, error analysis | ✅ |
 | **M3** Journal + metrics | Decision notes saved to a local SQLite file, CSV trade import, behavioral metrics, Streamlit UI, demo mode | ✅ |
+| M3.5 Guided reflection | Hints and how-to guides for each missing check, answering the questions, checks ticked when an answer covers them, proceed/change/cancel after reflecting | ⏳ Planned, after M3 and REQ-018 |
 | M4 RAG | Semantic search over past decisions as a tool in a hand-written agent loop (REQ-014), storage moved to Supabase + pgvector, Recall@5 eval | ❌ Post-MVP |
 | M5 Outcome tracking | Match decisions to price outcomes | ❌ Post-MVP |
 | M6 LangGraph comparison | Same agent rebuilt in LangGraph, compared in README | ❌ Post-MVP |
@@ -131,9 +132,32 @@ The app cannot know whether the author actually read a report. It only sees whet
 | **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ✅ |
 | **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ✅ |
 | **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ✅ |
-| **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and never opens `data/private/`. | Must | ⏳ |
+| **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and never opens `data/private/`. | Must | 🔄 |
 
-### 5.4 Post-MVP
+### 5.4 M3.5 — Guided reflection
+
+**Why:** asking a question assumes the author knows how to answer it. "How did you decide this price is reasonable?" means little to someone who has never looked at a P/E ratio. This milestone turns the questions into a short learning loop and serves the first goal of the project (§1): financial literacy, not only bias detection.
+
+**Flow:** note → analysis (label, missing checks, questions) → for each question a one-line hint and a step-by-step guide → the author answers → the LLM checks whether each answer covers its check → covered checks are ticked → the author records what they will do.
+
+**Design rules:**
+
+- **Guides are written by hand, not generated.** Each check in §4.4 has one short, reviewed guide. Code picks the guide from the question's `check`; the LLM is not involved. Reason: a generated guide can invent where to find data or state figures and verdicts ("the P/E is 40, too high"), which breaks "numbers from code" and "ask, don't judge".
+- **The bias label never changes.** The label records the reasoning at decision time. A good answer afterwards does not undo the impulse, and changing the label would break metrics such as "3 of your 4 FOMO buys lost money".
+- **A tick needs proof.** An answer covers a check only if it contains something concrete for that check (for `valuation`: a comparison with the company's own history or with peers). "I looked, it's fine" does not count. The LLM must quote the part of the answer that covers the check, and code verifies the quote, as in REQ-012.
+- **No free chat in this milestone.** Free chat drifts toward advice ("so should I sell?") and cannot be evaluated. Open questions about the guides ("what is P/E?") belong to M4, where retrieval can be limited to the author's own guides.
+
+| ID | Requirement | Done when | Priority | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **REQ-030** | Every check has a hint and a how-to guide. | `docs/guides/<check>.md` exists for all 7 checks in §4.4. Each has a one-line hint, what the concept is in plain words, where to find the data, how to compare (at least one concrete method), common mistakes, and an example answer pattern. ≤250 words each. Guides contain no figures about specific companies. | Must | ⏳ |
+| **REQ-031** | The UI shows help under each question. | Under each question the hint is visible and the guide opens on demand. The guide is chosen by the question's `check` in code. | Must | ⏳ |
+| **REQ-032** | I can answer the questions. | Each question has an answer field. Answers are saved in SQLite, linked to the analysis and the question. Saving answers never changes the stored analysis or its label. | Must | ⏳ |
+| **REQ-033** | Answers are checked against their checks. | One structured call per submission. For each answer: `covered` (true/false), a quote from the answer when covered, and a follow-up question when not. The output validates against a Pydantic schema, and every quote is a substring of the answer (verified in code). The prompt and the original note are recorded like REQ-017. | Must | ⏳ |
+| **REQ-034** | Covered checks are shown as ticked. | The UI shows `checks covered: k / n`, with each covered check ticked and its quote shown. Checks not covered show the follow-up question. | Must | ⏳ |
+| **REQ-035** | I record what I will do after reflecting. | After answering, I choose proceed / change / cancel, saved with a timestamp. The metrics tab shows the share of decisions changed or cancelled, with n (REQ-025). | Must | ⏳ |
+| **REQ-036** | The answer check is evaluated. | ≥30 hand-labeled (check, answer, covered) pairs, covering every check with both covered and not-covered examples. Precision and recall of `covered` are reported. Pairs are written by me, not taken from source datasets. | Must | ⏳ |
+
+### 5.5 Post-MVP
 
 | ID | Requirement | Done when | Priority | Status |
 | :--- | :--- | :--- | :--- | :---: |
@@ -199,6 +223,9 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 
 | Decision | Blocks | Notes |
 | :--- | :--- | :--- |
+| When reflection is used | M3.5 | Before the trade (decision can still change, proceed/change/cancel is meaningful) or after it (learning only). Proceed/change/cancel only makes sense before. |
+| Follow-up rounds | REQ-033 | Start with one round (answer, check, done). Add a second round only if real use shows it is needed. |
+| Who writes the guides | REQ-030 | Plan: I write them as part of studying, Claude reviews for accuracy and plain language. |
 | Final checklist | REQ-027 | §4.4 is a draft. v0.3 added `research` after the first own note (AVGO). Revisit after ~10 own notes. |
 | Embedding model | M4 | Post-MVP. |
 | Identical same-day trades | REQ-022 | A trade's fingerprint is built from its fields, so two real trades with the same date, ticker, side, quantity, price and fee are imported as one. A unique trade ID column (for example a Midas order number) would fix this. Accepted as a known limitation for now. |
