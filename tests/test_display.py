@@ -19,3 +19,12 @@ def test_note_text_is_escaped():
 
 def test_newlines_become_line_breaks():
     assert highlight_evidence("a\nb", None) == "a<br>b"
+
+
+from src.journal.display import with_n
+
+
+def test_small_samples_are_labeled():
+    assert with_n("9.0 days", 2) == "9.0 days (n=2) · insufficient data"
+    assert with_n("9.0 days", 12) == "9.0 days (n=12)"
+    assert with_n(None, 0) == "– (n=0)"

@@ -11,7 +11,7 @@ import csv
 import sqlite3
 from datetime import date
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TextIO
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -51,29 +51,36 @@ def _first_error(e: ValidationError) -> str:
 
 
 def import_trades(conn: sqlite3.Connection, csv_path: str | Path) -> dict:
-    """Import trades from a CSV file. Returns {"imported", "duplicates", "rejected": [(line_no, reason)]}."""
-    imported, duplicates, rejected = 0, 0, []
-
+    """Import trades from a CSV file on disk. See import_trades_from() for the result."""
     with open(csv_path, newline="", encoding="utf-8-sig") as f:   # utf-8-sig: ignores the BOM Excel adds
-        reader = csv.DictReader(f)
-        missing = REQUIRED_COLUMNS - {c.strip() for c in (reader.fieldnames or [])}
-        if missing:
-            return {"imported": 0, "duplicates": 0, "rejected": [(1, f"missing columns: {', '.join(sorted(missing))}")]}
+        return import_trades_from(conn, f)
 
-        for line_no, row in enumerate(reader, start=2):           # line 1 is the header
-            try:
-                trade = TradeRow(**_clean(row))
-            except ValidationError as e:
-                rejected.append((line_no, _first_error(e)))
-                continue
 
-            try:
-                # mode="json" gives plain values ("2026-09-03", 2.0), so the same trade always hashes the same
-                if db.add_trade(conn, trade.model_dump(mode="json")):
-                    imported += 1
-                else:
-                    duplicates += 1
-            except sqlite3.IntegrityError:                         # e.g. note_id points to a note that doesn't exist
-                rejected.append((line_no, f"note_id: no note with id {trade.note_id}"))
+def import_trades_from(conn: sqlite3.Connection, f: TextIO) -> dict:
+    """Import trades from an open text stream (a file, or an upload in the UI).
+
+    Returns {"imported", "duplicates", "rejected": [(line_no, reason)]}.
+    """
+    imported, duplicates, rejected = 0, 0, []
+    reader = csv.DictReader(f)
+    missing = REQUIRED_COLUMNS - {c.strip() for c in (reader.fieldnames or [])}
+    if missing:
+        return {"imported": 0, "duplicates": 0, "rejected": [(1, f"missing columns: {', '.join(sorted(missing))}")]}
+
+    for line_no, row in enumerate(reader, start=2):               # line 1 is the header
+        try:
+            trade = TradeRow(**_clean(row))
+        except ValidationError as e:
+            rejected.append((line_no, _first_error(e)))
+            continue
+
+        try:
+            # mode="json" gives plain values ("2026-09-03", 2.0), so the same trade always hashes the same
+            if db.add_trade(conn, trade.model_dump(mode="json")):
+                imported += 1
+            else:
+                duplicates += 1
+        except sqlite3.IntegrityError:                             # e.g. note_id points to a note that doesn't exist
+            rejected.append((line_no, f"note_id: no note with id {trade.note_id}"))
 
     return {"imported": imported, "duplicates": duplicates, "rejected": rejected}

@@ -39,3 +39,14 @@ def highlight_evidence(text: str, evidence: str | None) -> str:
         return safe(text)
     s, e = match.span()
     return f"{safe(text[:s])}<mark>{safe(text[s:e])}</mark>{safe(text[e:])}"
+
+
+MIN_N = 10   # REQ-025: below this, a metric is shown but labeled "insufficient data"
+
+
+def with_n(value: str | None, n: int) -> str:
+    """Every aggregate shows its sample size (REQ-025)."""
+    if value is None or n == 0:
+        return f"– (n={n})"
+    note = " · insufficient data" if n < MIN_N else ""
+    return f"{value} (n={n}){note}"

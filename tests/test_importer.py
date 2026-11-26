@@ -53,3 +53,10 @@ def test_unknown_note_id_is_rejected(conn, tmp_path):
     report = import_trades(conn, csv_file)
     assert report["imported"] == 0
     assert report["rejected"] == [(2, "note_id: no note with id 999")]
+
+
+def test_import_from_a_text_stream(conn):
+    import io
+    from src.journal.importer import import_trades_from
+    upload = io.StringIO("date,ticker,market,side,quantity,price,currency\n2026-09-03,AVGO,US,buy,2,310.5,USD\n")
+    assert import_trades_from(conn, upload)["imported"] == 1

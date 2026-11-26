@@ -130,7 +130,7 @@ The app cannot know whether the author actually read a report. It only sees whet
 | **REQ-021** | I can see the analysis next to the note. | The UI shows the label, evidence highlighted in the note, rationale, missing checks and questions. | Must | ✅ |
 | **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ✅ |
 | **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ✅ |
-| **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ⏳ |
+| **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ✅ |
 | **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and never opens `data/private/`. | Must | ⏳ |
 
 ### 5.4 Post-MVP
