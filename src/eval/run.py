@@ -130,7 +130,8 @@ def classification_metrics(test: pd.DataFrame, y_pred) -> dict:
         "confusion_matrix": {"labels": LABELS,
                              "rows_gold_cols_pred": confusion_matrix(y_true, y_pred, labels=LABELS).tolist()},
         "by_stratum": {g: {"n": int((group == g).sum()),
-                           "macro_f1": round(macro_f1(y_true[group == g], y_pred[group == g]), 4)}
+                           "macro_f1": round(macro_f1(y_true[group == g], y_pred[group == g]), 4)
+                                       if (group == g).any() else None}   # a --limit run may miss a group
                        for g in ["general", "keyword", "pilot"]},
     }
 
@@ -213,6 +214,11 @@ def setup_record(model: str, n_test: int, limit: int | None) -> dict:
     }
 
 
+def _f1(x) -> str:
+    """Format a score; "–" for a stratum with no items (possible in a --limit run)."""
+    return "–" if x is None else f"{x:.3f}"
+
+
 def markdown_table(results: dict) -> str:
     b, g = results["baseline"], results["llm"]
     return "\n".join([
@@ -221,10 +227,10 @@ def markdown_table(results: dict) -> str:
         "",
         "| Model | Macro-F1 | Macro-F1 (general / keyword) | Latency p50 / p95 | Tokens in / out per item |",
         "| :--- | ---: | :--- | :--- | :--- |",
-        f"| TF-IDF + LR baseline | {b['macro_f1']:.3f} | {b['by_stratum']['general']['macro_f1']:.3f} / "
-        f"{b['by_stratum']['keyword']['macro_f1']:.3f} | {b['predict_ms_per_item']:.2f} ms | – |",
+        f"| TF-IDF + LR baseline | {b['macro_f1']:.3f} | {_f1(b['by_stratum']['general']['macro_f1'])} / "
+        f"{_f1(b['by_stratum']['keyword']['macro_f1'])} | {b['predict_ms_per_item']:.2f} ms | – |",
         f"| {results['setup']['llm_model']} (zero-shot) | {g['macro_f1']:.3f} | "
-        f"{g['by_stratum']['general']['macro_f1']:.3f} / {g['by_stratum']['keyword']['macro_f1']:.3f} | "
+        f"{_f1(g['by_stratum']['general']['macro_f1'])} / {_f1(g['by_stratum']['keyword']['macro_f1'])} | "
         f"{g['latency_p50_s']} s / {g['latency_p95_s']} s | "
         f"{g['input_tokens_per_item']} / {g['output_tokens_per_item']} |",
         "",
