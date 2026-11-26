@@ -2,7 +2,7 @@
 
 **Version:** 0.3 · **Date:** 2026-11-20 · **Status:** MVP scope agreed, open decisions listed in §9
 
-**Changelog:** 0.3 — `research` check added to the financial literacy checklist (§4.4) after reviewing the first own note; REQ-007 split implemented; REQ-005 simplified: reviewer changes to suggestions are no longer tracked (no `checked` or `suggested_*` columns); the dataset is now single-label (§4.2), so every item has exactly one label; classification is one structured LLM call, and the hand-written agent loop (REQ-014) moves to M4, where a tool is actually needed; scope cut to the core: Should/Could items removed, REQ-012 and REQ-019 raised to Must, own notes (REQ-009) moved to post-MVP; synthetic data (REQ-008) cut. 0.2 — financial literacy checklist (§4.4) with checklist-targeted questions (REQ-027), question quality eval (REQ-028) and checklist coverage over time (REQ-029); 4 evaluated biases after the pilot; stratified sampling; model-assisted labeling with a single reviewer; requirements rewritten as requirement + done-when.
+**Changelog:** 0.3 — `research` check added to the financial literacy checklist (§4.4) after reviewing the first own note; REQ-007 split implemented; REQ-005 simplified: reviewer changes to suggestions are no longer tracked (no `checked` or `suggested_*` columns); the dataset is now single-label (§4.2), so every item has exactly one label; classification is one structured LLM call, and the hand-written agent loop (REQ-014) moves to M4, where a tool is actually needed; scope cut to the core: Should/Could items removed, REQ-012 and REQ-019 raised to Must, own notes (REQ-009) moved to post-MVP; synthetic data (REQ-008) cut; storage is SQLite until M4. 0.2 — financial literacy checklist (§4.4) with checklist-targeted questions (REQ-027), question quality eval (REQ-028) and checklist coverage over time (REQ-029); 4 evaluated biases after the pilot; stratified sampling; model-assisted labeling with a single reviewer; requirements rewritten as requirement + done-when.
 
 ## 1. Purpose
 
@@ -18,7 +18,7 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 | Numbers from code, words from the LLM | Every metric and number is computed in Python. The LLM only explains numbers it is given and never produces new ones. |
 | No buy/sell advice | The app analyzes decisions. It never says what to buy, sell or hold. |
 | Ask, don't judge | Questions point to what the author didn't check. They never state a verdict on the stock (for example "the P/E is too high"). |
-| Privacy | The public demo runs only on a fictional portfolio and sample notes. Real portfolio data never leaves the local machine or the private database. |
+| Privacy | The public demo runs only on a fictional portfolio and sample notes. Real portfolio data never leaves the local machine: notes and trades live in a local SQLite file under the git-ignored `data/private/`. Only the note text is sent to the LLM (Gemini free tier, see §9), so notes contain no personal or account details. |
 | Narrow and deep | The evaluation is deep and everything else stays simple. Fewer, finished features. |
 | Visible LLM calls | No agent framework, so every prompt sent to the model is fully controlled during eval. Classification is a single structured call: the model has everything it needs in the prompt, so a tool loop would only add calls, cost and variance. The hand-written agent loop comes in M4, where the model must decide when to search past decisions. |
 
@@ -28,8 +28,8 @@ Investment Bias Detector is an investment decision journal. It records the reaso
 | :--- | :--- | :--- |
 | **M1** Dataset | Bias definitions, annotation guideline, pilot, model-assisted labeled dataset, train/test split | ✅ |
 | **M2** Classifier + eval | LLM bias analyzer, checklist-targeted questions, TF-IDF baseline, one-command eval harness, error analysis | ✅ |
-| **M3** Journal + metrics | Decision notes saved to Supabase, CSV trade import, behavioral metrics, Streamlit UI, demo mode | ✅ |
-| M4 RAG | Semantic search over past decisions as a tool in a hand-written agent loop (REQ-014), Recall@5 eval | ❌ Post-MVP |
+| **M3** Journal + metrics | Decision notes saved to a local SQLite file, CSV trade import, behavioral metrics, Streamlit UI, demo mode | ✅ |
+| M4 RAG | Semantic search over past decisions as a tool in a hand-written agent loop (REQ-014), storage moved to Supabase + pgvector, Recall@5 eval | ❌ Post-MVP |
 | M5 Outcome tracking | Match decisions to price outcomes | ❌ Post-MVP |
 | M6 LangGraph comparison | Same agent rebuilt in LangGraph, compared in README | ❌ Post-MVP |
 
@@ -126,12 +126,12 @@ The app cannot know whether the author actually read a report. It only sees whet
 
 | ID | Requirement | Done when | Priority | Status |
 | :--- | :--- | :--- | :--- | :---: |
-| **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to Supabase, runs the analysis (REQ-011) and stores the result linked to the note. | Must | ⏳ |
+| **REQ-020** | I can write a decision note. | Submitting ticker, market, side, date and note saves it to the local SQLite database (`data/private/journal.db`), runs the analysis (REQ-011) and stores the result linked to the note. | Must | ⏳ |
 | **REQ-021** | I can see the analysis next to the note. | The UI shows the label, evidence highlighted in the note, rationale, missing checks and questions. | Must | ⏳ |
 | **REQ-022** | Trades are imported from a CSV. | Files matching §7.1 are imported. Invalid rows are rejected with row number and reason. Re-importing the same file creates no duplicates. | Must | ⏳ |
 | **REQ-023** | Behavioral metrics are computed from trades. | pandas computes median holding period (winners vs losers), trades per month and a disposition proxy, per currency, never mixing USD and TRY. Unit tests match a hand-calculated fixture. | Must | ⏳ |
 | **REQ-025** | Every aggregate shows its sample size. | n is displayed. If n < 10 the metric is labeled "insufficient data". | Must | ⏳ |
-| **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and cannot read the real data tables. | Must | ⏳ |
+| **REQ-026** | A public demo runs on fictional data. | Demo mode loads only a seeded fictional portfolio and sample notes, and never opens `data/private/`. | Must | ⏳ |
 
 ### 5.4 Post-MVP
 
@@ -206,7 +206,8 @@ A future Midas importer is an adapter that converts Midas exports into this sche
 
 | Decision | Date | Choice and why |
 | :--- | :--- | :--- |
-| LLM provider | 2026-11-21 | **Gemini (Flash models)** for M2. Known API from Briefly, free tier is enough for ~82 test items. Not Claude, because Claude suggested the labels (REQ-005). The free tier may use inputs to improve Google's products, so it is used only for public WSB posts; real decision notes go through the paid tier or another provider. The exact model ID is recorded per eval run (REQ-017), because Gemini model names change often. NFR-008 keeps a second provider possible. |
+| LLM provider | 2026-11-21 | **Gemini (Flash models)** for M2. Known API from Briefly, free tier is enough for ~82 test items. Not Claude, because Claude suggested the labels (REQ-005). The free tier is used for both the WSB posts and my own notes. Free-tier inputs may be used to improve Google's products and may be read by human reviewers, so notes never contain personal or account details (name, broker account, portfolio value, income), and numbers such as position size are filled in by code and never sent to the model (REQ-027). The exact model ID is recorded per eval run (REQ-017), because Gemini model names change often. NFR-008 keeps a second provider possible. |
+| Storage | 2026-11-21 | **SQLite** (Python standard library) for the MVP, in the git-ignored `data/private/`. A single-user journal needs no cloud database, real notes stay on the local machine, and the public demo needs no keys or separate tables. Supabase (Postgres + pgvector) comes with M4, where vector search is actually needed; the tables are plain SQL, so the move is small. |
 
 ## 10. Licensing and data-use policy
 

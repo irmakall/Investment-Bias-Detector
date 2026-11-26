@@ -66,9 +66,9 @@ The same seed always produces the same samples.
 
 ## Tech stack
 
-Python · Pydantic · scikit-learn · pandas · Supabase (Postgres) · Streamlit
+Python · Pydantic · scikit-learn · pandas · Gemini API · SQLite · Streamlit
 
-Post-MVP: pgvector (semantic search), LangGraph (comparison with the hand-written loop).
+Post-MVP: Supabase + pgvector (semantic search over past decisions), LangGraph (comparison with the hand-written loop).
 
 ## Roadmap
 
