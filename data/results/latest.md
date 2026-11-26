@@ -1,4 +1,4 @@
-Test set: 82 posts · run 2026-11-21T21:25:06 · commit 20a88e7-dirty
+Test set: 82 posts · run 2026-11-21T21:28:11 · commit f76df21
 
 | Model | Macro-F1 | Macro-F1 (general / keyword) | Latency p50 / p95 | Tokens in / out per item |
 | :--- | ---: | :--- | :--- | :--- |
